@@ -971,6 +971,7 @@ otel = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "anthropic" },
     { name = "mkdocs" },
     { name = "mkdocs-material" },
     { name = "mypy" },
@@ -996,6 +997,7 @@ provides-extras = ["embeddings", "llm", "otel"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "anthropic", specifier = ">=1.0" },
     { name = "mkdocs", specifier = ">=1.6,<2" },
     { name = "mkdocs-material", specifier = ">=9.5" },
     { name = "mypy", specifier = ">=1.10" },

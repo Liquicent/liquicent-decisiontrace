@@ -48,6 +48,19 @@ jobs:
       - run: uv sync --locked --all-extras
       - run: uv run mkdocs build --strict
 
+  fresh-clone:
+    # The README's "try it" steps exactly as a newcomer runs them (plain `uv sync`).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - run: uv run python examples/refund_agent.py
+      - run: uv run python examples/otel_agent.py
+      - run: uv run dt why "$(uv run dt log -n 1 | awk '{print $3}')" | grep -q "Why:"
+
   package:
     runs-on: ubuntu-latest
     steps:

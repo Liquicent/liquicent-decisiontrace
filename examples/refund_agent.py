@@ -18,7 +18,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import anthropic
+try:
+    import anthropic
+except ImportError:
+    sys.exit("This example needs the Anthropic SDK: pip install 'liquicent-decisiontrace[llm]'")
 
 import decisiontrace as dt
 
