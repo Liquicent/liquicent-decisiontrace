@@ -1,0 +1,15 @@
+{
+  "record_type": "outcome",
+  "schema_version": "0.1.0",
+  "id": "01M4ZJBF007NJ69JTH86X7CAV7",
+  "namespace": "local",
+  "trace_id": "01M4ZEB9E0JDTFNTMWC6APY7YR",
+  "status": "reverted",
+  "note": "Broke month-end invoices for UTC-8 customers; reverted in c77d013",
+  "recorded_by": {
+    "type": "human",
+    "id": "user:praveen",
+    "name": "Praveen"
+  },
+  "recorded_at": "2026-10-15T16:00:00Z"
+}

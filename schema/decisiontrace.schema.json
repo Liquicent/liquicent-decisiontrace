@@ -1,0 +1,315 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/vpsingh88/liquicent-decisiontrace/schema/decisiontrace.schema.json",
+  "title": "DecisionTrace record",
+  "description": "One append-only record in a DecisionTrace store: a decision DT = <C, P, E, X, H, T, O>, or an outcome or correction linked to an earlier decision. Annotations named x-otel give the OpenTelemetry GenAI attribute a field maps to (opentelemetry-semantic-conventions 0.66b1).",
+  "x-schema-version": "0.1.0",
+  "oneOf": [
+    { "$ref": "#/$defs/DecisionTrace" },
+    { "$ref": "#/$defs/OutcomeRecord" },
+    { "$ref": "#/$defs/CorrectionRecord" }
+  ],
+  "$defs": {
+    "SchemaVersion": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "Ulid": {
+      "description": "ULID: 48-bit millisecond timestamp + 80 random bits, Crockford base32.",
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "Timestamp": {
+      "description": "RFC 3339 timestamp with an explicit offset.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "Label": {
+      "description": "Dotted lower-case label, e.g. 'refund.approve' or 'code.edit'.",
+      "type": "string",
+      "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)*$",
+      "maxLength": 128
+    },
+    "Sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "Namespace": {
+      "description": "Isolation boundary for traces (a person, team or tenant). 'local' for a single-user store.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$"
+    },
+    "Attributes": {
+      "description": "Extension point. Keys should be namespaced (e.g. 'gen_ai.request.temperature', 'acme.ticket_priority').",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$" },
+      "additionalProperties": {
+        "type": ["string", "number", "integer", "boolean", "null"]
+      }
+    },
+    "Integrity": {
+      "description": "Per-store hash chain, filled by the store on append. The first record's prev_hash is sha256: followed by 64 zeros.",
+      "type": "object",
+      "required": ["prev_hash", "hash"],
+      "additionalProperties": false,
+      "properties": {
+        "prev_hash": { "$ref": "#/$defs/Sha256" },
+        "hash": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "Actor": {
+      "type": "object",
+      "required": ["type", "id"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["human", "agent", "system"] },
+        "id": { "type": "string", "minLength": 1, "maxLength": 256, "x-otel": "gen_ai.agent.id (agents)" },
+        "name": { "type": "string", "maxLength": 256, "x-otel": "gen_ai.agent.name (agents)" },
+        "role": { "type": "string", "maxLength": 128 }
+      }
+    },
+    "Model": {
+      "type": "object",
+      "required": ["provider", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "type": "string", "x-otel": "gen_ai.provider.name" },
+        "name": { "type": "string", "x-otel": "gen_ai.request.model" }
+      }
+    },
+    "Cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "usd": { "type": "number", "minimum": 0 },
+        "input_tokens": { "type": "integer", "minimum": 0, "x-otel": "gen_ai.usage.input_tokens" },
+        "output_tokens": { "type": "integer", "minimum": 0, "x-otel": "gen_ai.usage.output_tokens" },
+        "cache_read_input_tokens": { "type": "integer", "minimum": 0, "x-otel": "gen_ai.usage.cache_read.input_tokens" }
+      }
+    },
+    "StateRef": {
+      "description": "Reference to enterprise state before or after the decision (S_t, S_t+1). A pointer, never a copy.",
+      "type": "object",
+      "required": ["type", "ref"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "$ref": "#/$defs/Label" },
+        "ref": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "hash": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ContextItem": {
+      "type": "object",
+      "required": ["type", "ref"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "$ref": "#/$defs/Label" },
+        "ref": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "summary": { "type": "string", "maxLength": 2000 },
+        "hash": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "Context": {
+      "description": "C: the inputs the decision was made on.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "workflow": { "$ref": "#/$defs/Label", "x-otel": "gen_ai.workflow.name" },
+        "inputs": { "type": "array", "items": { "$ref": "#/$defs/ContextItem" } },
+        "state_before": { "$ref": "#/$defs/StateRef" }
+      }
+    },
+    "PolicyEvaluation": {
+      "description": "One rule evaluated for this decision (P). 'enforced' means a hard gate ran it; false means advisory or recorded only.",
+      "type": "object",
+      "required": ["policy_id", "result"],
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "version": { "type": "string", "maxLength": 64 },
+        "hash": { "$ref": "#/$defs/Sha256" },
+        "engine": { "enum": ["cel", "opa", "cedar", "yaml", "claude_code_permissions", "authority_envelope", "custom"] },
+        "result": { "enum": ["pass", "fail", "not_applicable", "error"] },
+        "enforced": { "description": "Absent means false.", "type": "boolean" },
+        "detail": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "PolicyException": {
+      "description": "E: a rule that failed or applied but was overridden, and by whom.",
+      "type": "object",
+      "required": ["policy_id", "reason", "granted_by", "at"],
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "granted_by": { "$ref": "#/$defs/Actor" },
+        "at": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+    "Action": {
+      "description": "An action proposed or taken (the paper's a_t / U_t).",
+      "type": "object",
+      "required": ["type", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["tool_call", "api_call", "message", "file_write", "memory_write", "state_change", "other"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 256, "x-otel": "gen_ai.tool.name (tool calls)" },
+        "call_id": { "type": "string", "maxLength": 256, "x-otel": "gen_ai.tool.call.id" },
+        "target": { "type": "string", "maxLength": 1024 },
+        "summary": { "type": "string", "maxLength": 2000 },
+        "parameters_hash": { "$ref": "#/$defs/Sha256" },
+        "status": { "description": "Absent means executed.", "enum": ["proposed", "executed", "failed", "cancelled"] }
+      }
+    },
+    "Alternative": {
+      "description": "X: an option considered and not taken, and what rejected it.",
+      "type": "object",
+      "required": ["action", "rejected_by"],
+      "additionalProperties": false,
+      "properties": {
+        "action": { "$ref": "#/$defs/Action" },
+        "rejected_by": { "enum": ["model", "human", "policy", "system"] },
+        "policy_id": { "type": "string", "maxLength": 256 },
+        "reason": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "HumanEvent": {
+      "description": "H: one step on the human path. Typed so approvals can be counted.",
+      "type": "object",
+      "required": ["type", "actor", "at"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["requested", "approved", "rejected", "edited", "escalated", "commented", "overrode"] },
+        "actor": { "$ref": "#/$defs/Actor" },
+        "at": { "$ref": "#/$defs/Timestamp" },
+        "latency_ms": { "type": "integer", "minimum": 0 },
+        "detail": { "type": "string", "maxLength": 2000 },
+        "diff_hash": { "$ref": "#/$defs/Sha256" }
+      }
+    },
+    "ActorTime": {
+      "description": "T: who or what decided, when, with what, at what cost.",
+      "type": "object",
+      "required": ["actor", "started_at"],
+      "additionalProperties": false,
+      "properties": {
+        "actor": { "$ref": "#/$defs/Actor" },
+        "on_behalf_of": { "$ref": "#/$defs/Actor" },
+        "model": { "$ref": "#/$defs/Model" },
+        "client": {
+          "description": "The application the decision was made in, e.g. claude-code 2.x.",
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "version": { "type": "string", "maxLength": 64 }
+          }
+        },
+        "session_id": { "type": "string", "maxLength": 256, "x-otel": "gen_ai.conversation.id" },
+        "started_at": { "$ref": "#/$defs/Timestamp" },
+        "ended_at": { "$ref": "#/$defs/Timestamp" },
+        "cost": { "$ref": "#/$defs/Cost" }
+      }
+    },
+    "OutcomeStatus": {
+      "enum": ["pending", "accepted", "reverted", "overridden", "escalated", "failed", "complained", "other"]
+    },
+    "Outcome": {
+      "description": "O as known when the decision was recorded. Later outcomes are separate OutcomeRecords.",
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "$ref": "#/$defs/OutcomeStatus" },
+        "note": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "Link": {
+      "description": "Typed edge to another record. Edge names follow the Unified Transaction Graph spec, plus 'delegation' (parent to child decision) and 'hand_off'.",
+      "type": "object",
+      "required": ["type", "target_id"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["context", "precedent", "reversal", "exec", "delegation", "hand_off", "supersedes"] },
+        "target_id": { "$ref": "#/$defs/Ulid" },
+        "note": { "type": "string", "maxLength": 2000 }
+      }
+    },
+    "DecisionTrace": {
+      "type": "object",
+      "required": ["record_type", "schema_version", "id", "namespace", "decision_kind", "intent", "actor_time"],
+      "additionalProperties": false,
+      "properties": {
+        "record_type": { "const": "decision" },
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "id": { "$ref": "#/$defs/Ulid" },
+        "namespace": { "$ref": "#/$defs/Namespace" },
+        "decision_kind": { "$ref": "#/$defs/Label" },
+        "intent": {
+          "description": "One-line, redacted statement of what was being decided.",
+          "type": "string", "minLength": 1, "maxLength": 500
+        },
+        "capabilities": {
+          "description": "Capability labels inferred from the trace, never declared by the user.",
+          "type": "array", "items": { "$ref": "#/$defs/Label" }, "uniqueItems": true
+        },
+        "context": { "$ref": "#/$defs/Context" },
+        "policies": { "type": "array", "items": { "$ref": "#/$defs/PolicyEvaluation" } },
+        "exceptions": { "type": "array", "items": { "$ref": "#/$defs/PolicyException" } },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/Action" } },
+        "alternatives": { "type": "array", "items": { "$ref": "#/$defs/Alternative" } },
+        "human_path": { "type": "array", "items": { "$ref": "#/$defs/HumanEvent" } },
+        "actor_time": { "$ref": "#/$defs/ActorTime" },
+        "outcome": { "$ref": "#/$defs/Outcome" },
+        "state_after": { "$ref": "#/$defs/StateRef" },
+        "links": { "type": "array", "items": { "$ref": "#/$defs/Link" } },
+        "attributes": { "$ref": "#/$defs/Attributes" },
+        "integrity": { "$ref": "#/$defs/Integrity" }
+      }
+    },
+    "OutcomeRecord": {
+      "description": "An outcome learned after the decision, appended as a new record (never an edit).",
+      "type": "object",
+      "required": ["record_type", "schema_version", "id", "namespace", "trace_id", "status", "recorded_by", "recorded_at"],
+      "additionalProperties": false,
+      "properties": {
+        "record_type": { "const": "outcome" },
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "id": { "$ref": "#/$defs/Ulid" },
+        "namespace": { "$ref": "#/$defs/Namespace" },
+        "trace_id": { "$ref": "#/$defs/Ulid" },
+        "status": { "$ref": "#/$defs/OutcomeStatus" },
+        "note": { "type": "string", "maxLength": 2000 },
+        "value_usd": { "description": "Money gained (+) or lost (-) because of this decision, if known.", "type": "number" },
+        "recorded_by": { "$ref": "#/$defs/Actor" },
+        "recorded_at": { "$ref": "#/$defs/Timestamp" },
+        "attributes": { "$ref": "#/$defs/Attributes" },
+        "integrity": { "$ref": "#/$defs/Integrity" }
+      }
+    },
+    "CorrectionRecord": {
+      "description": "A correction to a recorded decision, appended as a new record. 'changes' maps field paths (e.g. 'intent', 'policies[0].result') to their corrected values.",
+      "type": "object",
+      "required": ["record_type", "schema_version", "id", "namespace", "trace_id", "changes", "reason", "corrected_by", "corrected_at"],
+      "additionalProperties": false,
+      "properties": {
+        "record_type": { "const": "correction" },
+        "schema_version": { "$ref": "#/$defs/SchemaVersion" },
+        "id": { "$ref": "#/$defs/Ulid" },
+        "namespace": { "$ref": "#/$defs/Namespace" },
+        "trace_id": { "$ref": "#/$defs/Ulid" },
+        "changes": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^[a-z_]+(\\[\\d+\\])?(\\.[a-z_]+(\\[\\d+\\])?)*$" }
+        },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "corrected_by": { "$ref": "#/$defs/Actor" },
+        "corrected_at": { "$ref": "#/$defs/Timestamp" },
+        "integrity": { "$ref": "#/$defs/Integrity" }
+      }
+    }
+  }
+}

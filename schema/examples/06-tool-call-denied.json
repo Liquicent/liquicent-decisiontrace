@@ -1,0 +1,83 @@
+{
+  "record_type": "decision",
+  "schema_version": "0.1.0",
+  "id": "01M4ZFFXA0KKZGR1XNW8M9M8R2",
+  "namespace": "local",
+  "decision_kind": "tool.call",
+  "intent": "Push the release branch to origin",
+  "capabilities": [
+    "code.release"
+  ],
+  "context": {
+    "inputs": [
+      {
+        "type": "user_prompt",
+        "ref": "prompt:7",
+        "summary": "Ship the release branch",
+        "hash": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
+      }
+    ]
+  },
+  "policies": [
+    {
+      "policy_id": "Bash(git push --force:*)",
+      "engine": "claude_code_permissions",
+      "result": "fail",
+      "enforced": true,
+      "detail": "Matched deny rule"
+    },
+    {
+      "policy_id": "Bash(git push:*)",
+      "engine": "claude_code_permissions",
+      "result": "pass",
+      "enforced": true
+    }
+  ],
+  "actions": [
+    {
+      "type": "tool_call",
+      "name": "Bash",
+      "call_id": "toolu_02B",
+      "summary": "git push origin release/1.4"
+    }
+  ],
+  "alternatives": [
+    {
+      "action": {
+        "type": "tool_call",
+        "name": "Bash",
+        "call_id": "toolu_02A",
+        "summary": "git push --force origin release/1.4",
+        "status": "cancelled"
+      },
+      "rejected_by": "policy",
+      "policy_id": "Bash(git push --force:*)"
+    }
+  ],
+  "outcome": {
+    "status": "accepted"
+  },
+  "actor_time": {
+    "actor": {
+      "type": "agent",
+      "id": "claude-code:main",
+      "name": "Claude Code"
+    },
+    "on_behalf_of": {
+      "type": "human",
+      "id": "user:praveen",
+      "name": "Praveen"
+    },
+    "model": {
+      "provider": "anthropic",
+      "name": "claude-sonnet-5-5"
+    },
+    "client": {
+      "name": "claude-code",
+      "version": "2.1.0"
+    },
+    "session_id": "cc-session-5d1e",
+    "started_at": "2026-10-15T09:50:00Z",
+    "ended_at": "2026-10-15T09:51:00Z"
+  }
+}

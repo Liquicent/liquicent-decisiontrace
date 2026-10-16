@@ -1,0 +1,63 @@
+{
+  "record_type": "decision",
+  "schema_version": "0.1.0",
+  "id": "01M4ZH6V409XVJVG0RPPS1JQ9X",
+  "namespace": "local",
+  "decision_kind": "research.delegate",
+  "intent": "Find every place the app reads exchange rates",
+  "capabilities": [
+    "code.search"
+  ],
+  "actions": [
+    {
+      "type": "tool_call",
+      "name": "Task",
+      "call_id": "toolu_04A",
+      "summary": "Spawned Explore subagent"
+    }
+  ],
+  "alternatives": [
+    {
+      "action": {
+        "type": "tool_call",
+        "name": "Grep",
+        "summary": "Search directly in main context",
+        "status": "proposed"
+      },
+      "rejected_by": "model",
+      "reason": "Broad search; keep main context small"
+    }
+  ],
+  "links": [
+    {
+      "type": "delegation",
+      "target_id": "01M4ZHS520EZT3RRGTC16WGDNV"
+    }
+  ],
+  "outcome": {
+    "status": "accepted"
+  },
+  "actor_time": {
+    "actor": {
+      "type": "agent",
+      "id": "claude-code:main",
+      "name": "Claude Code"
+    },
+    "on_behalf_of": {
+      "type": "human",
+      "id": "user:praveen",
+      "name": "Praveen"
+    },
+    "model": {
+      "provider": "anthropic",
+      "name": "claude-sonnet-5-5"
+    },
+    "client": {
+      "name": "claude-code",
+      "version": "2.1.0"
+    },
+    "session_id": "cc-session-77ab",
+    "started_at": "2026-10-15T10:20:00Z",
+    "ended_at": "2026-10-15T10:24:00Z"
+  }
+}

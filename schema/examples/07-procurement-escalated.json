@@ -1,0 +1,105 @@
+{
+  "record_type": "decision",
+  "schema_version": "0.1.0",
+  "id": "01M4ZG2780RF0F3X72Q2VMQBFY",
+  "namespace": "acme",
+  "decision_kind": "procurement.approve",
+  "intent": "Approve PO for 40 laptops from Dell ($62,400)",
+  "capabilities": [
+    "procurement.purchase_order"
+  ],
+  "context": {
+    "workflow": "procurement.purchase",
+    "inputs": [
+      {
+        "type": "purchase_request",
+        "ref": "coupa:PR-2291"
+      },
+      {
+        "type": "vendor",
+        "ref": "coupa:vendor/dell",
+        "summary": "Preferred vendor"
+      },
+      {
+        "type": "budget",
+        "ref": "erp:cc-410/2026Q4",
+        "summary": "$71,000 remaining"
+      }
+    ]
+  },
+  "policies": [
+    {
+      "policy_id": "authority.procurement_agent",
+      "version": "2026-09",
+      "engine": "authority_envelope",
+      "result": "fail",
+      "enforced": true,
+      "detail": "Agent envelope is $25,000 per PO"
+    },
+    {
+      "policy_id": "budget.available",
+      "engine": "cel",
+      "result": "pass",
+      "enforced": true
+    },
+    {
+      "policy_id": "vendor.preferred",
+      "engine": "cel",
+      "result": "pass"
+    }
+  ],
+  "actions": [
+    {
+      "type": "api_call",
+      "name": "coupa.purchase_orders.create",
+      "target": "coupa:PO-8810"
+    }
+  ],
+  "alternatives": [
+    {
+      "action": {
+        "type": "api_call",
+        "name": "coupa.purchase_orders.create",
+        "summary": "Split into 3 POs under $25k",
+        "status": "proposed"
+      },
+      "rejected_by": "system",
+      "reason": "PO splitting to evade limits is prohibited"
+    }
+  ],
+  "human_path": [
+    {
+      "type": "escalated",
+      "actor": {
+        "type": "agent",
+        "id": "agent:procurement"
+      },
+      "at": "2026-10-15T10:01:00Z",
+      "detail": "Above authority envelope"
+    },
+    {
+      "type": "approved",
+      "actor": {
+        "type": "human",
+        "id": "user:arjun",
+        "role": "finance_controller"
+      },
+      "at": "2026-10-15T14:19:00Z",
+      "latency_ms": 15480000
+    }
+  ],
+  "outcome": {
+    "status": "pending"
+  },
+  "actor_time": {
+    "actor": {
+      "type": "agent",
+      "id": "agent:procurement"
+    },
+    "started_at": "2026-10-15T10:00:00Z",
+    "ended_at": "2026-10-15T14:20:00Z",
+    "cost": {
+      "usd": 0.09
+    }
+  }
+}

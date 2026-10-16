@@ -117,3 +117,33 @@ already reviewed.
 **Missing files referenced in the notes**
 - `liquicent-oss-plan.md` (90-day plan) and `liquicent-valence-addendum.md` — not in either
   archive.
+
+## 2026-10-16 — Decisions made; Phase 0 done (pending CI on GitHub)
+
+**Decisions** (Praveen delegated; recorded in `docs/DECISIONS.md`)
+- D1 open-core boundary: open = capture, store, adapters, single-user local recall;
+  Liquicent = anything needing many people's traces or acting on them (shared Context
+  Graph, auto-approval, trust/WorkRank, Valence, compounding score). No enforcement here.
+- D2 schema is an open standard, versioned on its own, OTel GenAI names pinned to 0.66b1.
+- D3 PyPI `liquicent-decisiontrace`, import `decisiontrace`, CLI `dt`.
+- D4 Apache-2.0 + DCO. D5 record execution, not cognition (now CLAUDE.md #7). D6 start now.
+
+**Phase 0 built**
+- `schema/decisiontrace.schema.json` v0.1.0: decision / outcome / correction records;
+  C, P, E, X, H, T, O plus `actions`, `state_before/after`, typed `links` (UTG edge names +
+  delegation, hand_off), `namespace`, `capabilities`, `attributes`, `integrity`.
+- 10 example decisions + 1 outcome + 1 correction in `schema/examples/`.
+- Pydantic models (frozen, extra=forbid), ULID ids, schema loader, `dt version/schema/validate`.
+- 123 tests: example validation and exact round-trip, schema↔model drift guard (fields,
+  required, enums), 25 invalid mutations rejected by both, ULIDs, CLI.
+- CI (3.11–3.13: ruff, format, mypy --strict, pytest, wheel install check), DCO check,
+  CONTRIBUTING, SECURITY, schema reference, README.
+
+**Assumption made:** `actions` is a list (one user intent → several tool calls in Claude
+Code), not the single `a_t` of the paper.
+
+**Next:** Phase 1 — SQLite append-only store, hash chain, redaction, dt init/log/show/
+verify/export, 100k benchmark, tamper test.
+
+**For Praveen (GitHub settings, 2 minutes):** enable *Private vulnerability reporting*
+(Settings → Code security) so SECURITY.md works; add repo topics.

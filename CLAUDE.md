@@ -17,12 +17,14 @@ This repo is only the "records" part, plus the local recall that makes recording
    previous one (per-store hash chain).
 3. **Sit on top of existing control planes, never replace them.** No gateway, no proxy,
    no interception layer. We read hooks, spans and SDK callbacks that already exist.
-4. **Local-first, zero-config.** `pip install decisiontrace && dt init` must work offline
+4. **Local-first, zero-config.** `pip install liquicent-decisiontrace && dt init` must work offline
    on a laptop with SQLite. No account, no server, no telemetry home.
 5. **Capabilities are discovered, not declared.** Never require users to write a
    manifest of what their agents do. Infer capability labels from traces.
 6. **Privacy by default.** Redact secrets and PII before write. Store prompt/response
    bodies only when the user opts in; store hashes and summaries otherwise.
+7. **Record execution, not cognition.** Never store model reasoning or chain-of-thought.
+   Store inputs, evaluations, actions, rejected alternatives, approvals and outcomes.
 
 ## The record
 
@@ -88,6 +90,9 @@ uv run dt --help
   what was done, what's next, open decisions.
 
 ## Out of scope for this repo (open-core boundary)
+
+See `docs/DECISIONS.md` (D1). Rule of thumb: if it needs many people's traces, or acts on
+traces instead of recording and recalling them, it belongs to Liquicent, not here.
 
 Valence reports, compounding score, WorkRank / trust routing, Company Brain, multi-tenant
 SaaS, SSO, org-wide dashboards. Design interfaces so these can consume the store, but do

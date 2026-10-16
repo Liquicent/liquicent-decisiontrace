@@ -1,0 +1,126 @@
+{
+  "record_type": "decision",
+  "schema_version": "0.1.0",
+  "id": "01M4ZCMBM0KTCPX4FH08G1VSBH",
+  "namespace": "acme",
+  "decision_kind": "refund.approve",
+  "intent": "Refund $850 for order 7731 (damaged in transit)",
+  "capabilities": [
+    "support.refunds"
+  ],
+  "context": {
+    "workflow": "support.refund",
+    "inputs": [
+      {
+        "type": "ticket",
+        "ref": "zendesk:88412",
+        "summary": "Customer reports parcel arrived crushed; photos attached"
+      },
+      {
+        "type": "order",
+        "ref": "shopify:7731",
+        "summary": "Order value $850, delivered 2026-10-13"
+      },
+      {
+        "type": "customer",
+        "ref": "crm:c-4410",
+        "summary": "VIP tier, 6-year customer, 0 prior refunds"
+      }
+    ]
+  },
+  "policies": [
+    {
+      "policy_id": "refund.max_auto_amount",
+      "version": "3",
+      "engine": "yaml",
+      "result": "fail",
+      "enforced": true,
+      "detail": "Amount $850 exceeds $500 auto-approval limit"
+    },
+    {
+      "policy_id": "refund.evidence_required",
+      "version": "1",
+      "engine": "yaml",
+      "result": "pass"
+    }
+  ],
+  "exceptions": [
+    {
+      "policy_id": "refund.max_auto_amount",
+      "reason": "Limit waived: VIP customer, carrier damage confirmed",
+      "granted_by": {
+        "type": "human",
+        "id": "user:meera",
+        "role": "support_lead"
+      },
+      "at": "2026-10-15T09:12:00Z"
+    }
+  ],
+  "actions": [
+    {
+      "type": "api_call",
+      "name": "stripe.refunds.create",
+      "target": "charge:ch_3Px",
+      "summary": "Full refund $850"
+    }
+  ],
+  "alternatives": [
+    {
+      "action": {
+        "type": "api_call",
+        "name": "stripe.refunds.create",
+        "summary": "Partial refund $500",
+        "status": "proposed"
+      },
+      "rejected_by": "human",
+      "reason": "Damage covers whole order"
+    }
+  ],
+  "human_path": [
+    {
+      "type": "requested",
+      "actor": {
+        "type": "agent",
+        "id": "agent:support-refunds",
+        "name": "Refunds agent"
+      },
+      "at": "2026-10-15T09:03:00Z",
+      "detail": "Approval requested: over limit"
+    },
+    {
+      "type": "approved",
+      "actor": {
+        "type": "human",
+        "id": "user:meera",
+        "role": "support_lead"
+      },
+      "at": "2026-10-15T09:12:00Z",
+      "latency_ms": 540000
+    }
+  ],
+  "outcome": {
+    "status": "pending"
+  },
+  "actor_time": {
+    "actor": {
+      "type": "agent",
+      "id": "agent:support-refunds",
+      "name": "Refunds agent"
+    },
+    "on_behalf_of": {
+      "type": "human",
+      "id": "customer:c-4410"
+    },
+    "model": {
+      "provider": "anthropic",
+      "name": "claude-sonnet-5-5"
+    },
+    "started_at": "2026-10-15T09:00:00Z",
+    "ended_at": "2026-10-15T09:14:00Z",
+    "cost": {
+      "usd": 0.042,
+      "input_tokens": 9120,
+      "output_tokens": 640
+    }
+  }
+}

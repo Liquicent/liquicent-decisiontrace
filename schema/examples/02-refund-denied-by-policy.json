@@ -1,0 +1,75 @@
+{
+  "record_type": "decision",
+  "schema_version": "0.1.0",
+  "id": "01M4ZD6NJ0X3RVH2AQFXQMTRJ7",
+  "namespace": "acme",
+  "decision_kind": "refund.deny",
+  "intent": "Decline refund request for order 7802 (outside 30-day window)",
+  "capabilities": [
+    "support.refunds"
+  ],
+  "context": {
+    "workflow": "support.refund",
+    "inputs": [
+      {
+        "type": "ticket",
+        "ref": "zendesk:88470"
+      },
+      {
+        "type": "order",
+        "ref": "shopify:7802",
+        "summary": "Delivered 2026-08-02"
+      }
+    ]
+  },
+  "policies": [
+    {
+      "policy_id": "refund.window_days",
+      "version": "2",
+      "engine": "yaml",
+      "result": "fail",
+      "enforced": true,
+      "detail": "74 days since delivery; window is 30"
+    }
+  ],
+  "actions": [
+    {
+      "type": "message",
+      "name": "zendesk.reply",
+      "target": "zendesk:88470",
+      "summary": "Explained policy, offered store credit"
+    }
+  ],
+  "alternatives": [
+    {
+      "action": {
+        "type": "api_call",
+        "name": "stripe.refunds.create",
+        "status": "proposed"
+      },
+      "rejected_by": "policy",
+      "policy_id": "refund.window_days"
+    }
+  ],
+  "outcome": {
+    "status": "accepted"
+  },
+  "actor_time": {
+    "actor": {
+      "type": "agent",
+      "id": "agent:support-refunds",
+      "name": "Refunds agent"
+    },
+    "model": {
+      "provider": "anthropic",
+      "name": "claude-sonnet-5-5"
+    },
+    "started_at": "2026-10-15T09:10:00Z",
+    "ended_at": "2026-10-15T09:11:00Z",
+    "cost": {
+      "usd": 0.011,
+      "input_tokens": 2800,
+      "output_tokens": 210
+    }
+  }
+}

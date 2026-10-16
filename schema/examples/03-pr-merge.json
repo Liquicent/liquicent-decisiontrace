@@ -1,0 +1,91 @@
+{
+  "record_type": "decision",
+  "schema_version": "0.1.0",
+  "id": "01M4ZDRZG0H1T0NCG78SRRADYC",
+  "namespace": "local",
+  "decision_kind": "pr.merge",
+  "intent": "Merge PR #212: retry webhook delivery with backoff",
+  "capabilities": [
+    "code.review",
+    "code.merge"
+  ],
+  "context": {
+    "workflow": "code.pull_request",
+    "inputs": [
+      {
+        "type": "pull_request",
+        "ref": "github:vpsingh88/app#212"
+      },
+      {
+        "type": "review",
+        "ref": "github:vpsingh88/app#212/reviews/1",
+        "summary": "Agent review: 2 suggestions, both applied"
+      }
+    ],
+    "state_before": {
+      "type": "git.commit",
+      "ref": "4be0a1c"
+    }
+  },
+  "policies": [
+    {
+      "policy_id": "ci.required_checks",
+      "engine": "custom",
+      "result": "pass",
+      "enforced": true
+    },
+    {
+      "policy_id": "codeowners.approval",
+      "engine": "custom",
+      "result": "pass",
+      "enforced": true
+    }
+  ],
+  "actions": [
+    {
+      "type": "state_change",
+      "name": "github.merge",
+      "target": "github:vpsingh88/app#212",
+      "summary": "Squash merge"
+    }
+  ],
+  "alternatives": [
+    {
+      "action": {
+        "type": "state_change",
+        "name": "github.merge",
+        "summary": "Rebase merge",
+        "status": "proposed"
+      },
+      "rejected_by": "human",
+      "reason": "Keep one commit per PR"
+    }
+  ],
+  "human_path": [
+    {
+      "type": "approved",
+      "actor": {
+        "type": "human",
+        "id": "user:praveen",
+        "name": "Praveen"
+      },
+      "at": "2026-10-15T09:30:00Z"
+    }
+  ],
+  "state_after": {
+    "type": "git.commit",
+    "ref": "9f3d27e"
+  },
+  "outcome": {
+    "status": "pending"
+  },
+  "actor_time": {
+    "actor": {
+      "type": "human",
+      "id": "user:praveen",
+      "name": "Praveen"
+    },
+    "started_at": "2026-10-15T09:20:00Z",
+    "ended_at": "2026-10-15T09:31:00Z"
+  }
+}

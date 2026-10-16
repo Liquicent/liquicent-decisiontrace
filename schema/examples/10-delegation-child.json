@@ -1,0 +1,52 @@
+{
+  "record_type": "decision",
+  "schema_version": "0.1.0",
+  "id": "01M4ZHS520EZT3RRGTC16WGDNV",
+  "namespace": "local",
+  "decision_kind": "code.search",
+  "intent": "Locate exchange-rate reads (delegated)",
+  "capabilities": [
+    "code.search"
+  ],
+  "actions": [
+    {
+      "type": "tool_call",
+      "name": "Grep",
+      "summary": "3 call sites found in src/fx/"
+    }
+  ],
+  "outcome": {
+    "status": "accepted"
+  },
+  "attributes": {
+    "decisiontrace.parent_call_id": "toolu_04A"
+  },
+  "actor_time": {
+    "actor": {
+      "type": "agent",
+      "id": "claude-code:explore",
+      "name": "Explore subagent"
+    },
+    "on_behalf_of": {
+      "type": "human",
+      "id": "user:praveen",
+      "name": "Praveen"
+    },
+    "model": {
+      "provider": "anthropic",
+      "name": "claude-haiku-5-5"
+    },
+    "client": {
+      "name": "claude-code",
+      "version": "2.1.0"
+    },
+    "session_id": "cc-session-77ab",
+    "started_at": "2026-10-15T10:20:30Z",
+    "ended_at": "2026-10-15T10:23:40Z",
+    "cost": {
+      "usd": 0.018,
+      "input_tokens": 40200,
+      "output_tokens": 900
+    }
+  }
+}

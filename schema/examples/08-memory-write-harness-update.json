@@ -1,0 +1,77 @@
+{
+  "record_type": "decision",
+  "schema_version": "0.1.0",
+  "id": "01M4ZGMH60JSW1YMVTSJ67XMT2",
+  "namespace": "local",
+  "decision_kind": "harness.update",
+  "intent": "Add rule to CLAUDE.md: run mypy before committing",
+  "capabilities": [
+    "agent.memory"
+  ],
+  "context": {
+    "inputs": [
+      {
+        "type": "user_prompt",
+        "ref": "prompt:2",
+        "summary": "Remember to type-check before commits",
+        "hash": "sha256:3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d"
+      },
+      {
+        "type": "file",
+        "ref": "CLAUDE.md",
+        "hash": "sha256:2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "type": "memory_write",
+      "name": "Edit",
+      "call_id": "toolu_03A",
+      "target": "CLAUDE.md",
+      "summary": "Appended rule under How we work",
+      "parameters_hash": "sha256:18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4"
+    }
+  ],
+  "human_path": [
+    {
+      "type": "approved",
+      "actor": {
+        "type": "human",
+        "id": "user:praveen",
+        "name": "Praveen"
+      },
+      "at": "2026-10-15T10:11:00Z"
+    }
+  ],
+  "state_after": {
+    "type": "file",
+    "ref": "CLAUDE.md",
+    "hash": "sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"
+  },
+  "outcome": {
+    "status": "accepted"
+  },
+  "actor_time": {
+    "actor": {
+      "type": "agent",
+      "id": "claude-code:main",
+      "name": "Claude Code"
+    },
+    "on_behalf_of": {
+      "type": "human",
+      "id": "user:praveen",
+      "name": "Praveen"
+    },
+    "model": {
+      "provider": "anthropic",
+      "name": "claude-sonnet-5-5"
+    },
+    "client": {
+      "name": "claude-code",
+      "version": "2.1.0"
+    },
+    "session_id": "cc-session-77ab",
+    "started_at": "2026-10-15T10:10:00Z"
+  }
+}

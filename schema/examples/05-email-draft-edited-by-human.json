@@ -1,0 +1,86 @@
+{
+  "record_type": "decision",
+  "schema_version": "0.1.0",
+  "id": "01M4ZEXKC04Y3AX7R2F3BXAJW2",
+  "namespace": "local",
+  "decision_kind": "email.draft",
+  "intent": "Reply to Globex about delayed shipment",
+  "capabilities": [
+    "email.compose"
+  ],
+  "context": {
+    "inputs": [
+      {
+        "type": "email_thread",
+        "ref": "gmail:thread/18c2",
+        "hash": "sha256:3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "type": "message",
+      "name": "gmail.send",
+      "target": "gmail:thread/18c2",
+      "summary": "Apology with new ETA of 22 Oct"
+    }
+  ],
+  "alternatives": [
+    {
+      "action": {
+        "type": "message",
+        "name": "gmail.send",
+        "summary": "Offer 10% discount",
+        "status": "proposed"
+      },
+      "rejected_by": "human",
+      "reason": "Not authorised to discount"
+    }
+  ],
+  "human_path": [
+    {
+      "type": "edited",
+      "actor": {
+        "type": "human",
+        "id": "user:praveen",
+        "name": "Praveen"
+      },
+      "at": "2026-10-15T09:50:00Z",
+      "detail": "Removed discount line; softened tone",
+      "diff_hash": "sha256:252f10c83610ebca1a059c0bae8255eba2f95be4d1d7bcfa89d7248a82d9f111"
+    },
+    {
+      "type": "approved",
+      "actor": {
+        "type": "human",
+        "id": "user:praveen",
+        "name": "Praveen"
+      },
+      "at": "2026-10-15T09:51:00Z",
+      "latency_ms": 660000
+    }
+  ],
+  "outcome": {
+    "status": "accepted"
+  },
+  "actor_time": {
+    "actor": {
+      "type": "agent",
+      "id": "agent:inbox-assistant"
+    },
+    "on_behalf_of": {
+      "type": "human",
+      "id": "user:praveen",
+      "name": "Praveen"
+    },
+    "model": {
+      "provider": "openai",
+      "name": "gpt-5"
+    },
+    "started_at": "2026-10-15T09:40:00Z",
+    "ended_at": "2026-10-15T09:52:00Z",
+    "cost": {
+      "usd": 0.006
+    }
+  }
+}

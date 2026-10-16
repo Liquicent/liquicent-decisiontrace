@@ -1,0 +1,18 @@
+{
+  "record_type": "correction",
+  "schema_version": "0.1.0",
+  "id": "01M4ZJXRY0F93QFDXWHGMM3HSS",
+  "namespace": "local",
+  "trace_id": "01M4ZDRZG0H1T0NCG78SRRADYC",
+  "changes": {
+    "policies[0].result": "not_applicable",
+    "policies[0].detail": "CI was skipped for docs-only change"
+  },
+  "reason": "Required checks did not run; the pass came from a stale status",
+  "corrected_by": {
+    "type": "human",
+    "id": "user:praveen",
+    "name": "Praveen"
+  },
+  "corrected_at": "2026-10-15T17:00:00Z"
+}
