@@ -1,0 +1,37 @@
+site_name: DecisionTrace
+site_description: Record why your AI made a decision, at the moment it's made.
+repo_url: https://github.com/vpsingh88/liquicent-decisiontrace
+edit_uri: edit/main/docs/
+theme:
+  name: material
+  features: [navigation.sections, content.code.copy, search.highlight]
+  palette:
+    - scheme: default
+      toggle: {icon: material/brightness-7, name: Dark mode}
+    - scheme: slate
+      toggle: {icon: material/brightness-4, name: Light mode}
+markdown_extensions:
+  - admonition
+  - tables
+  - toc: {permalink: true}
+  - pymdownx.superfences
+  - pymdownx.snippets: {base_path: ["."], check_paths: true}
+exclude_docs: |
+  BUILD_PLAN.md
+  progress-log.md
+  DECISIONS.md
+  launch/
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Concepts: concepts.md
+  - Adapters:
+      - Claude Code: adapters/claude-code.md
+      - MCP (Claude Desktop, Cursor): adapters/mcp.md
+      - Anthropic & OpenAI SDKs: adapters/sdk.md
+      - OpenTelemetry: adapters/otel.md
+  - Recall (why, similar, ask): recall.md
+  - CLI reference: cli.md
+  - Schema reference: schema.md
+  - Privacy & security: privacy.md
+  - What's out of scope: out-of-scope.md

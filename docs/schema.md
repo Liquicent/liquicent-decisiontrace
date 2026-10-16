@@ -1,0 +1,1 @@
+--8<-- "schema/README.md"

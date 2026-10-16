@@ -61,6 +61,6 @@ Pinned to `opentelemetry-semantic-conventions` 0.66b1. Fields carry an `x-otel` 
 
 ## Examples
 
-`examples/` holds ten decisions (refunds, PR merge, Claude Code edit, email draft, denied
+The `schema/examples/` folder holds ten decisions (refunds, PR merge, Claude Code edit, email draft, denied
 tool call, escalated purchase order, memory write, delegation parent/child) plus one outcome
 and one correction. Validate any file with `dt validate`.

@@ -283,3 +283,25 @@ his own traces: pending (needs ~1–2 weeks of dogfood; run `dt eval --sample 20
 the result (rule failed, Meera's exception and approval, actions). Tested on the real
 Anthropic SDK (1.15) incl. tool runner, async and SSE streaming; real OTLP protobuf
 exporter end to end. `--live` against the real API not run here (no key in this env).
+
+## 2026-10-16 — Phase 6 prepared: launch (release and posts await Praveen)
+
+**Built**
+- README rewritten to reach `dt why` in five minutes (real output, not a mock-up), adapter
+  table, record, principles, what it isn't.
+- Docs site (mkdocs-material, `mkdocs build --strict` in CI): getting started, concepts,
+  adapters, recall (similarity formula and tuning), CLI reference, schema reference,
+  privacy & security (incl. the tamper-evident-not-tamper-proof limit), out of scope.
+  Test keeps the CLI reference in sync with the commands.
+- Version 0.1.0, CHANGELOG, release workflow (tag-triggered, version check, tests, build,
+  PyPI Trusted Publishing — not triggered). `twine check` passes on wheel and sdist; clean
+  wheel install works. `liquicent-decisiontrace` still free on PyPI.
+- `docs/demo.tape` to record the 60-second GIF with vhs (vhs not available here).
+- Show HN, LinkedIn and ANS-100 follow-up drafts written **outside the public repo**
+  (handed to Praveen), not posted.
+
+**Exit test:** the stranger test needs a real person (a 99tests tester) — pending. A
+scripted fresh-clone run of the README steps passes (see below).
+
+**Waiting on Praveen:** PyPI Trusted Publishing setup, signed `v0.1.0` tag, GIF recording,
+stranger test, trademark check, GitHub private vulnerability reporting, docs hosting.

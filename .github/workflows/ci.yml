@@ -38,6 +38,16 @@ jobs:
       - name: 100k traces under a minute
         run: DT_BENCH=1 uv run pytest -q -s tests/benchmark
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked --all-extras
+      - run: uv run mkdocs build --strict
+
   package:
     runs-on: ubuntu-latest
     steps:

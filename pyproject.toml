@@ -1,6 +1,6 @@
 [project]
 name = "liquicent-decisiontrace"
-version = "0.0.1"
+version = "0.1.0"
 description = "Record why your AI made a decision, at the moment it's made. Local-first, tamper-evident decision traces."
 readme = "README.md"
 license = "Apache-2.0"
@@ -9,7 +9,7 @@ requires-python = ">=3.11"
 authors = [{ name = "Liquicent" }]
 keywords = ["ai-agents", "audit-trail", "decision-trace", "claude-code", "mcp", "opentelemetry"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -45,6 +45,8 @@ otel = [
 
 [dependency-groups]
 dev = [
+    "mkdocs>=1.6,<2",
+    "mkdocs-material>=9.5",
     "mypy>=1.10",
     "opentelemetry-exporter-otlp-proto-http>=1.25",
     "opentelemetry-sdk>=1.25",
@@ -64,7 +66,7 @@ packages = ["src/decisiontrace"]
 "schema/decisiontrace.schema.json" = "decisiontrace/_schema/decisiontrace.schema.json"
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "schema", "tests", "README.md", "LICENSE"]
+include = ["src", "schema", "tests", "examples", "docs", "README.md", "LICENSE", "CHANGELOG.md", "mkdocs.yml"]
 
 [tool.ruff]
 line-length = 100
