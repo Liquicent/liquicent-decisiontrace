@@ -88,3 +88,32 @@ Claude Code appends a dated entry here at the end of every session.
 - The HLD's first wedge (PR governance / code review) matches the Claude Code adapter; PR
   merge and code edit are among the Phase 0 example traces.
 - Embedded Transformer / belief-state cognition: no impact on this repo.
+
+## 2026-10-16 — Project export + ChatGPT archive reviewed
+
+**Sources:** project notes, investor deck text (Oct 2026), solo-builder progress log,
+recovered index of ChatGPT project chats (Jul 2025 – Oct 2026). PDFs were the same ones
+already reviewed.
+
+**Open-core boundary — needs Praveen's call**
+- Aug 2026 OSS strategy chat: open-source DecisionTrace + execution kernel (NKP/FSA guards,
+  approvals, replay, adapters); keep Context Graph / precedent / trust proprietary.
+- Investor deck (slide 13): OSS = SDK + local capture + replay/viewer.
+- BUILD_PLAN: OSS includes precedent recall (`dt similar`, paper's Sim function); excludes
+  enforcement and replay; no viewer.
+- Proposed line: open = single-user/local recall (`why/similar/ask`) because it drives
+  retention; proprietary = cross-team Context Graph, precedent-based auto-approval, trust,
+  autonomy, compounding score. Keep enforcement out (CLAUDE.md #3). Deck should be updated
+  to match ("replay/viewer" and "execution boundary" wording predate the Oct no-gateway call).
+
+**Requirements this adds to the store**
+- Compounding score (performance ÷ cost per capability): every trace needs a reliable
+  per-decision cost in `T` and a capability label (inferred, not declared).
+- "Approvals per 100 decisions": `H` must make approvals countable (typed events, not text).
+- Harness-update loop: changes to prompts, skills, CLAUDE.md, routing are themselves
+  traces (same as the memory-write decision kind).
+- Hand-offs / chain map: delegation links must cross tools and people, not just subagents.
+
+**Missing files referenced in the notes**
+- `liquicent-oss-plan.md` (90-day plan) and `liquicent-valence-addendum.md` — not in either
+  archive.
