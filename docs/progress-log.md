@@ -305,3 +305,12 @@ scripted fresh-clone run of the README steps passes (see below).
 
 **Waiting on Praveen:** PyPI Trusted Publishing setup, signed `v0.1.0` tag, GIF recording,
 stranger test, trademark check, GitHub private vulnerability reporting, docs hosting.
+
+**Fresh-clone check (stand-in for the stranger test)** caught a real stall: the showcase
+needed the Anthropic SDK, which a plain `uv sync` didn't install. Fixed (dev dependency +
+clear message) and added a `fresh-clone` CI job that runs the README's steps on every push.
+
+**Next for Praveen:** dogfood the Claude Code adapter for 1–2 weeks, then
+`dt eval --sample 20 -o golden.jsonl`, fill in, and `dt eval golden.jsonl` (target 80%).
+Then the launch checklist (PyPI, tag, GIF, stranger test). Valence (company phase 2) and
+Liquicent (phase 3) start in private repos and read this store.
