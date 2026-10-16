@@ -57,6 +57,14 @@ MIGRATIONS: list[str] = [
         PRIMARY KEY (record_id, name)
     );
     """,
+    # 2: full-text index for recall (derived data; rebuilt from records if missing).
+    """
+    CREATE VIRTUAL TABLE search USING fts5(
+        record_id UNINDEXED,
+        text,
+        tokenize = 'porter unicode61'
+    );
+    """,
 ]
 
 

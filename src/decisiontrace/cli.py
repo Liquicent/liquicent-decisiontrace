@@ -261,7 +261,8 @@ def export(
             store.export_jsonl(sys.stdout)
 
 
-TARGETS = ("claude-code",)
+TARGETS = ("claude-code", "claude-desktop", "cursor")
+MCP_TARGETS = ("claude-desktop", "cursor")
 ScopeOption = Annotated[
     str, typer.Option("--scope", help="user (all projects), project, or local (not committed)")
 ]
@@ -272,13 +273,21 @@ def install(
     target: Annotated[str, typer.Argument(help="What to hook into: claude-code")],
     scope: ScopeOption = "user",
 ) -> None:
-    """Start recording decisions from a tool you already use."""
+    """Start recording: claude-code (hooks), or claude-desktop / cursor (MCP server)."""
     if target not in TARGETS:
         _fail(f"unknown target {target!r}; choose from: {', '.join(TARGETS)}")
-    from decisiontrace.adapters.claude_code.install import install as do_install
-
     config = init_home(state.home or default_home())
     Store.open(config).close()
+    custom_home = config.home if config.home != default_home() else None
+    if target in MCP_TARGETS:
+        from decisiontrace.adapters.mcp.clients import install as mcp_install
+
+        path = mcp_install(target, custom_home)
+        typer.echo(f"DecisionTrace MCP server added to {path}")
+        typer.echo("Restart the app; it will show tools record, recall and outcome.")
+        return
+    from decisiontrace.adapters.claude_code.install import install as do_install
+
     try:
         path = do_install(scope)
     except ValueError as exc:
@@ -297,6 +306,14 @@ def uninstall(
     """Stop recording (recorded decisions are kept)."""
     if target not in TARGETS:
         _fail(f"unknown target {target!r}; choose from: {', '.join(TARGETS)}")
+    if target in MCP_TARGETS:
+        from decisiontrace.adapters.mcp.clients import uninstall as mcp_uninstall
+
+        mcp_path, found = mcp_uninstall(target)
+        typer.echo(
+            f"Removed DecisionTrace from {mcp_path}" if found else f"Not configured in {mcp_path}"
+        )
+        return
     from decisiontrace.adapters.claude_code.install import uninstall as do_uninstall
 
     path, removed = do_uninstall(scope)
@@ -304,6 +321,30 @@ def uninstall(
         typer.echo(f"Removed {removed} DecisionTrace hooks from {path}")
     else:
         typer.echo(f"No DecisionTrace hooks found in {path}")
+
+
+@app.command()
+def mcp(
+    config_for: Annotated[
+        str | None,
+        typer.Option(
+            "--config", help="Print setup for a client instead: claude-desktop, cursor, claude-code"
+        ),
+    ] = None,
+) -> None:
+    """Run the local MCP server (stdio), or print the snippet to configure a client."""
+    if config_for:
+        from decisiontrace.adapters.mcp.clients import snippet
+
+        cfg = _config()
+        try:
+            typer.echo(snippet(config_for, cfg.home if cfg.home != default_home() else None))
+        except ValueError as exc:
+            _fail(str(exc))
+        return
+    from decisiontrace.mcp_server import main as serve
+
+    serve()
 
 
 @app.command()

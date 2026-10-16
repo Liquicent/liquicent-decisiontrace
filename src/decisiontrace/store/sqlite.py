@@ -19,6 +19,7 @@ from decisiontrace.model import (
     parse_record,
     to_json_dict,
 )
+from decisiontrace.recall.text import fts_query, index_text
 from decisiontrace.redact import Redactor
 from decisiontrace.store.chain import GENESIS, canonical, link_hash
 from decisiontrace.store.migrations import migrate
@@ -76,6 +77,7 @@ class Store:
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.execute("PRAGMA busy_timeout=10000")
         migrate(self._conn)
+        self._ensure_index()
 
     @classmethod
     def open(cls, config: Config | None = None) -> Store:
@@ -155,6 +157,11 @@ class Store:
                     )
                 except sqlite3.IntegrityError as exc:
                     raise DuplicateRecord(f"record {data['id']} already exists") from exc
+                if isinstance(model, DecisionTrace):
+                    conn.execute(
+                        "INSERT INTO search (record_id, text) VALUES (?, ?)",
+                        (data["id"], index_text(model)),
+                    )
                 for link in data.get("links", []):
                     conn.execute(
                         "INSERT OR IGNORE INTO links VALUES (?,?,?)",
@@ -277,6 +284,54 @@ class Store:
             "SELECT name, content FROM bodies WHERE record_id = ?", (record_id,)
         ).fetchall()
         return {str(n): str(c) for n, c in rows}
+
+    def search(
+        self, text: str, limit: int = 50, decision_kind: str | None = None
+    ) -> list[tuple[DecisionTrace, float]]:
+        """Decisions matching ``text`` with their BM25 rank (lower is better)."""
+        query = fts_query(text)
+        if query is None:
+            return []
+        sql = (
+            "SELECT r.body, r.prev_hash, r.hash, bm25(search) AS rank FROM search"
+            " JOIN records r ON r.id = search.record_id WHERE search MATCH ?"
+        )
+        args: list[Any] = [query]
+        if decision_kind:
+            sql += " AND (r.decision_kind = ? OR r.decision_kind LIKE ?)"
+            args += [decision_kind, decision_kind + ".%"]
+        sql += " ORDER BY rank LIMIT ?"
+        args.append(limit)
+        out = []
+        for body, prev, digest, rank in self._conn.execute(sql, args):
+            rec = self._row_to_record((body, prev, digest))
+            assert isinstance(rec, DecisionTrace)
+            out.append((rec, float(rank)))
+        return out
+
+    def _ensure_index(self) -> None:
+        indexed = self._conn.execute("SELECT COUNT(*) FROM search").fetchone()[0]
+        decisions = self._conn.execute(
+            "SELECT COUNT(*) FROM records WHERE record_type = 'decision'"
+        ).fetchone()[0]
+        if indexed == decisions:
+            return
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            self._conn.execute("DELETE FROM search")
+            rows = self._conn.execute(
+                "SELECT body, prev_hash, hash FROM records WHERE record_type = 'decision'"
+            ).fetchall()
+            for row in rows:
+                rec = self._row_to_record(row)
+                assert isinstance(rec, DecisionTrace)
+                self._conn.execute(
+                    "INSERT INTO search (record_id, text) VALUES (?, ?)", (rec.id, index_text(rec))
+                )
+            self._conn.execute("COMMIT")
+        except BaseException:
+            self._conn.execute("ROLLBACK")
+            raise
 
     def has(self, record_id: str) -> bool:
         return self._exists(record_id)

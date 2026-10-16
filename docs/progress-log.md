@@ -208,3 +208,24 @@ recorded; chain verifies.
 **Hooks doc notes:** no event for an interactive user deny; inferred from
 PermissionRequest with no PostToolUse. `CLAUDE_CODE_VERSION` env not documented; version
 read from transcript instead.
+
+## 2026-10-16 — Phase 3 done: MCP server
+
+**Built**
+- `mcp_server.py` on the official MCP Python SDK **2.3.0** (`MCPServer`; v2 renamed
+  FastMCP): tools `record`, `recall`, `outcome`, with server instructions (recall before
+  rule/limit decisions; record facts only, never secrets or reasoning).
+- Recall layer (shared with Phase 4): SQLite FTS5 index (migration 2, rebuilt from records if
+  missing), BM25 + small recency weight for free-text queries; `precedent_view` returns
+  rules, exceptions (who, role, why), approval path, rejected options, outcome. Passing a
+  decision id ranks by the paper's similarity function (`recall/similarity.py`, done early).
+- `dt mcp` (stdio), `dt mcp --config claude-desktop|cursor|claude-code`,
+  `dt install|uninstall claude-desktop|cursor` (merge, backup), `python -m decisiontrace`.
+
+**Exit test** ✓ — three decisions recorded through MCP, "how did we handle the last refund
+over the limit?" returns the over-limit refund first, with its exception and approval path;
+verified both in-process and over real stdio (`python -m decisiontrace mcp`).
+Live check in the Claude Desktop app itself: pending (needs Praveen's machine).
+
+**Other:** benchmark still 35.8 s with the FTS index. Ruff E501 dropped in favour of the
+formatter (ruff's recommended setup).

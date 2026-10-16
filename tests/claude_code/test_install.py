@@ -94,4 +94,4 @@ def test_cli_install_and_uninstall(tmp_path: Path) -> None:
         app, ["--home", str(home), "uninstall", "claude-code", "--scope", "project"]
     )
     assert "Removed 11" in result.output
-    assert runner.invoke(app, ["install", "cursor"]).exit_code == 1
+    assert runner.invoke(app, ["install", "vim"]).exit_code == 1

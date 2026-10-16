@@ -19,6 +19,7 @@ classifiers = [
 ]
 dependencies = [
     "jsonschema>=4.21",
+    "mcp>=1.10",
     "pydantic>=2.7",
     "typer>=0.12",
 ]
@@ -57,6 +58,11 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+# Line length is the formatter's job (ruff's recommended setup); math docstrings use Greek.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/decisiontrace/recall/similarity.py" = ["RUF001", "RUF002", "RUF003"]
 
 [tool.mypy]
 strict = true
