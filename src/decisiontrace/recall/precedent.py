@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from decisiontrace.model import CorrectionRecord, DecisionTrace
+from decisiontrace.recall.embeddings import Embedder, cosine
 from decisiontrace.recall.similarity import Score, Weights, policy_ids, similarity
 from decisiontrace.store import Store
 from decisiontrace.views import apply_corrections, current_outcome
@@ -21,19 +22,49 @@ class Hit:
     components: dict[str, float] = field(default_factory=dict)
 
 
-def search(store: Store, text: str, limit: int = 5, kind: str | None = None) -> list[Hit]:
-    """Free-text recall: BM25 relevance, with a small preference for recent decisions."""
+def search(
+    store: Store,
+    text: str,
+    limit: int = 5,
+    kind: str | None = None,
+    embedder: Embedder | None = None,
+) -> list[Hit]:
+    """Free-text recall: BM25 relevance (+ cosine similarity when embeddings are enabled),
+    with a small preference for recent decisions."""
     raw = store.search(text, limit=max(limit * 4, 20), decision_kind=kind)
-    if not raw:
+    lexical: dict[str, float] = {}
+    traces: dict[str, DecisionTrace] = {}
+    if raw:
+        best = max(-rank for _, rank in raw) or 1.0
+        for trace, rank in raw:
+            lexical[trace.id] = max(0.0, -rank) / best
+            traces[trace.id] = trace
+    semantic: dict[str, float] = {}
+    if embedder is not None:
+        query = embedder.embed([text])[0]
+        for rid, sim in store.nearest(embedder.name, query, k=max(limit * 4, 20)):
+            semantic[rid] = max(0.0, sim)
+            for rid in semantic:
+                if rid not in traces:
+                    rec = store.get(rid)
+                    if isinstance(rec, DecisionTrace) and (
+                        not kind
+                        or rec.decision_kind == kind
+                        or rec.decision_kind.startswith(kind + ".")
+                    ):
+                        traces[rid] = rec
+    if not traces:
         return []
-    best = max(-rank for _, rank in raw) or 1.0
     now = datetime.now(UTC)
     hits = []
-    for trace, rank in raw:
-        relevance = max(0.0, -rank) / best
+    for rid, trace in traces.items():
         days = max(0.0, (now - trace.actor_time.started_at).total_seconds() / 86400)
         recency = math.exp(-days / 90)
-        hits.append(Hit(trace=trace, score=round(0.85 * relevance + 0.15 * recency, 4)))
+        if semantic:
+            score = 0.5 * lexical.get(rid, 0.0) + 0.35 * semantic.get(rid, 0.0) + 0.15 * recency
+        else:
+            score = 0.85 * lexical.get(rid, 0.0) + 0.15 * recency
+        hits.append(Hit(trace=trace, score=round(score, 4)))
     hits.sort(key=lambda h: (h.score, h.trace.actor_time.started_at), reverse=True)
     return hits[:limit]
 
@@ -60,12 +91,20 @@ def candidates(store: Store, query: DecisionTrace, cap: int = 2000) -> list[Deci
 
 
 def similar(
-    store: Store, query: DecisionTrace, limit: int = 5, weights: Weights | None = None
+    store: Store,
+    query: DecisionTrace,
+    limit: int = 5,
+    weights: Weights | None = None,
+    embedder: Embedder | None = None,
 ) -> list[Hit]:
     weights = weights or Weights.from_config(store.config.home)
-    scored: list[tuple[DecisionTrace, Score]] = [
-        (c, similarity(query, c, weights)) for c in candidates(store, query)
-    ]
+    vectors = store.embeddings(embedder.name) if embedder is not None else {}
+    qvec = vectors.get(query.id)
+    scored: list[tuple[DecisionTrace, Score]] = []
+    for c in candidates(store, query):
+        cvec = vectors.get(c.id)
+        sem = cosine(qvec, cvec) if qvec is not None and cvec is not None else None
+        scored.append((c, similarity(query, c, weights, semantic=sem)))
     scored.sort(key=lambda p: p[1].total, reverse=True)
     return [
         Hit(trace=t, score=s.total, strength=s.strength, components=s.components)

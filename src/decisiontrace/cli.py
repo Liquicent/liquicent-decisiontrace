@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 from datetime import UTC, datetime
@@ -259,6 +260,148 @@ def export(
             typer.echo(f"Exported {n} records to {output}", err=True)
         else:
             store.export_jsonl(sys.stdout)
+
+
+def _embedder(config: Config) -> Any:
+    from decisiontrace.recall.embeddings import get_embedder
+
+    try:
+        return get_embedder(config.home)
+    except Exception as exc:  # optional dependency missing or model unavailable
+        typer.echo(f"(embeddings unavailable: {exc}; using full-text search)", err=True)
+        return None
+
+
+@app.command()
+def why(
+    target: Annotated[str, typer.Argument(help="Decision id/prefix, file path, or git commit")],
+    precedents: Annotated[int, typer.Option(help="How many similar decisions to list")] = 3,
+) -> None:
+    """Explain, in plain English, why a decision was made."""
+    from decisiontrace.recall.why import explain, resolve_target
+
+    with _open_store(drain_first=True) as store:
+        try:
+            trace = resolve_target(store, target, Path.cwd())
+        except StoreError as exc:
+            _fail(str(exc))
+        typer.echo(explain(store, trace, precedents=precedents))
+
+
+@app.command()
+def similar(
+    query: Annotated[str, typer.Argument(help="Decision id/prefix, or a description")],
+    limit: Annotated[int, typer.Option("--limit", "-n")] = 5,
+) -> None:
+    """Rank past decisions by similarity, with the score breakdown (P, X, C, A, T, Δt)."""
+    from decisiontrace.recall.precedent import search
+    from decisiontrace.recall.precedent import similar as rank_similar
+
+    with _open_store(drain_first=True) as store:
+        embedder = _embedder(store.config)
+        base = None
+        with contextlib.suppress(StoreError):
+            base = store.get(query)
+        if isinstance(base, DecisionTrace):
+            hits = rank_similar(store, base, limit=limit, embedder=embedder)
+            typer.echo(f"Precedents for {short(base.id)}: {base.intent}")
+        else:
+            hits = search(store, query, limit=limit, embedder=embedder)
+            typer.echo(f"Decisions matching: {query}")
+        if not hits:
+            typer.echo("  none found")
+            return
+        for h in hits:
+            when = h.trace.actor_time.started_at.strftime("%Y-%m-%d")
+            label = f"{h.strength} {h.score:.2f}" if h.components else f"{h.score:.2f}"
+            typer.echo(f"  {when}  {short(h.trace.id)}  [{label}]  {h.trace.intent[:70]}")
+            if h.components:
+                c = h.components
+                typer.echo(
+                    f"      P {c['P']:.2f}  X {c['X']:.2f}  C {c['C']:.2f}  A {c['A']:.2f}"
+                    f"  T {c['T']:.2f}  Δt {c['dt']:.2f}y"
+                )
+
+
+@app.command()
+def ask(
+    question: Annotated[
+        str, typer.Argument(help="e.g. 'which refunds needed an exception last week?'")
+    ],
+    llm: Annotated[
+        bool,
+        typer.Option(
+            "--llm", help="Have Claude write the answer (sends matching redacted records)"
+        ),
+    ] = False,
+    limit: Annotated[int, typer.Option("--limit", "-n")] = 10,
+) -> None:
+    """Ask a question about your decisions. Works offline; --llm uses Claude."""
+    from decisiontrace.recall.ask import answer_llm, answer_offline
+
+    with _open_store(drain_first=True) as store:
+        if llm:
+            try:
+                typer.echo(answer_llm(store, question, limit))
+                return
+            except ImportError:
+                _fail("--llm needs: pip install 'liquicent-decisiontrace[llm]'")
+            except Exception as exc:  # no credentials, network, API error
+                typer.echo(
+                    f"(Claude unavailable: {type(exc).__name__}; answering offline)", err=True
+                )
+        typer.echo(answer_offline(store, question, limit))
+
+
+@app.command()
+def reindex() -> None:
+    """Rebuild search indexes and compute missing embeddings (if enabled)."""
+    from decisiontrace.recall.embeddings import embed_missing
+
+    config = _config()
+    with _open_store() as store:
+        store._conn.execute("DELETE FROM meta WHERE key = 'index_version'")
+    with _open_store() as store:  # reopening rebuilds the full-text and file/commit index
+        embedder = _embedder(config)
+        added = embed_missing(store, embedder) if embedder else 0
+        typer.echo(
+            f"Indexed {store.count()} records"
+            + (f"; {added} new embeddings ({embedder.name})" if embedder else "")
+        )
+
+
+@app.command(name="eval")
+def eval_golden(
+    golden: Annotated[Path | None, typer.Argument(help="Golden set (.jsonl)")] = None,
+    sample_n: Annotated[
+        int, typer.Option("--sample", help="Draft a golden set from N real decisions instead")
+    ] = 0,
+    output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
+) -> None:
+    """Score `dt why` against a hand-checked golden set (or draft one with --sample)."""
+    from decisiontrace.recall.golden import evaluate, load, sample
+
+    with _open_store(drain_first=True) as store:
+        if sample_n:
+            cases = sample(store, sample_n)
+            text = "".join(json.dumps(c, ensure_ascii=False) + "\n" for c in cases)
+            if output:
+                output.write_text(text, encoding="utf-8")
+                typer.echo(f"Drafted {len(cases)} cases in {output}; fill in must_mention by hand.")
+            else:
+                typer.echo(text, nl=False)
+            return
+        if golden is None:
+            _fail("give a golden .jsonl file, or --sample N to draft one")
+        results = evaluate(store, load(golden))
+    passed = sum(r.passed for r in results)
+    for r in results:
+        mark = "PASS" if r.passed else "FAIL"
+        typer.echo(f"{mark}  {r.target}" + ("" if r.passed else "  — " + "; ".join(r.problems)))
+    score = passed / len(results) if results else 0.0
+    typer.echo(f"\n{passed}/{len(results)} correct ({score:.0%}); target 80%")
+    if score < 0.8:
+        raise typer.Exit(code=1)
 
 
 TARGETS = ("claude-code", "claude-desktop", "cursor")

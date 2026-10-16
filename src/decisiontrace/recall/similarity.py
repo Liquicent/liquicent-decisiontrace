@@ -141,12 +141,18 @@ def age_gap_years(a: DecisionTrace, b: DecisionTrace) -> float:
     return min(seconds / (365 * 24 * 3600), 1.0)
 
 
-def similarity(a: DecisionTrace, b: DecisionTrace, w: Weights | None = None) -> Score:
+def similarity(
+    a: DecisionTrace, b: DecisionTrace, w: Weights | None = None, semantic: float | None = None
+) -> Score:
+    """``semantic`` (cosine of embeddings, if enabled) is blended into the C component."""
     w = w or Weights()
+    context = c_component(a, b)
+    if semantic is not None:
+        context = 0.5 * context + 0.5 * max(0.0, semantic)
     comps = {
         "P": p_component(a, b),
         "X": x_component(a, b),
-        "C": c_component(a, b),
+        "C": context,
         "A": a_component(a, b),
         "T": t_component(a, b),
         "dt": age_gap_years(a, b),

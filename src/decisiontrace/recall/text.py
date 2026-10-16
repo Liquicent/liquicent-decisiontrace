@@ -126,3 +126,20 @@ def fts_query(text: str) -> str | None:
     if not words:
         return None
     return " OR ".join(f'"{w}"*' for w in words[:24])
+
+
+def refs_for(trace: DecisionTrace) -> set[tuple[str, str]]:
+    """(kind, ref) pairs a decision can be looked up by: files touched/read and commits."""
+    out: set[tuple[str, str]] = set()
+    for a in trace.actions or []:
+        if a.target and a.type in ("file_write", "memory_write"):
+            out.add(("file", a.target))
+    if trace.context:
+        for item in trace.context.inputs or []:
+            if item.type == "file":
+                out.add(("file_read", item.ref))
+        if trace.context.state_before and trace.context.state_before.type == "git.commit":
+            out.add(("commit_before", trace.context.state_before.ref.lower()))
+    if trace.state_after and trace.state_after.type == "git.commit":
+        out.add(("commit", trace.state_after.ref.lower()))
+    return out

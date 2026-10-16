@@ -65,6 +65,24 @@ MIGRATIONS: list[str] = [
         tokenize = 'porter unicode61'
     );
     """,
+    # 3: refs (files, commits) -> decisions, for `dt why <file|commit>` (derived data).
+    """
+    CREATE TABLE refs (
+        record_id TEXT NOT NULL,
+        kind      TEXT NOT NULL,
+        ref       TEXT NOT NULL,
+        PRIMARY KEY (kind, ref, record_id)
+    );
+    """,
+    # 4: optional embeddings for recall (derived data; only filled when a provider is set).
+    """
+    CREATE TABLE embeddings (
+        record_id TEXT PRIMARY KEY,
+        model     TEXT NOT NULL,
+        dim       INTEGER NOT NULL,
+        vector    BLOB NOT NULL
+    );
+    """,
 ]
 
 

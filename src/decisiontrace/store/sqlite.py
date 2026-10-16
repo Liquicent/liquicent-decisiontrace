@@ -19,12 +19,13 @@ from decisiontrace.model import (
     parse_record,
     to_json_dict,
 )
-from decisiontrace.recall.text import fts_query, index_text
+from decisiontrace.recall.text import fts_query, index_text, refs_for
 from decisiontrace.redact import Redactor
 from decisiontrace.store.chain import GENESIS, canonical, link_hash
 from decisiontrace.store.migrations import migrate
 
 AnyRecord = DecisionTrace | OutcomeRecord | CorrectionRecord
+INDEX_VERSION = "2"  # bump when index_text / refs_for change; triggers a rebuild on open
 
 
 class StoreError(Exception):
@@ -158,10 +159,7 @@ class Store:
                 except sqlite3.IntegrityError as exc:
                     raise DuplicateRecord(f"record {data['id']} already exists") from exc
                 if isinstance(model, DecisionTrace):
-                    conn.execute(
-                        "INSERT INTO search (record_id, text) VALUES (?, ?)",
-                        (data["id"], index_text(model)),
-                    )
+                    self._index(model)
                 for link in data.get("links", []):
                     conn.execute(
                         "INSERT OR IGNORE INTO links VALUES (?,?,?)",
@@ -309,25 +307,119 @@ class Store:
             out.append((rec, float(rank)))
         return out
 
+    def _index(self, trace: DecisionTrace) -> None:
+        self._conn.execute(
+            "INSERT INTO search (record_id, text) VALUES (?, ?)", (trace.id, index_text(trace))
+        )
+        self._conn.executemany(
+            "INSERT OR IGNORE INTO refs (record_id, kind, ref) VALUES (?,?,?)",
+            [(trace.id, kind, ref) for kind, ref in refs_for(trace)],
+        )
+
+    def by_ref(self, kind: str, ref: str, prefix: bool = False) -> list[DecisionTrace]:
+        """Decisions indexed under a file path or commit, newest first."""
+        op, value = ("LIKE", ref.lower() + "%") if prefix else ("=", ref)
+        rows = self._conn.execute(
+            "SELECT r.body, r.prev_hash, r.hash FROM refs f JOIN records r ON r.id = f.record_id"
+            f" WHERE f.kind = ? AND f.ref {op} ? ORDER BY r.seq DESC",
+            (kind, value),
+        ).fetchall()
+        out = []
+        for row in rows:
+            rec = self._row_to_record(row)
+            assert isinstance(rec, DecisionTrace)
+            out.append(rec)
+        return out
+
+    def file_refs_like(self, suffix: str) -> list[str]:
+        rows = self._conn.execute(
+            "SELECT DISTINCT ref FROM refs WHERE kind IN ('file', 'file_read') AND"
+            " (ref = ? OR ref LIKE ?) LIMIT 20",
+            (suffix, "%/" + suffix),
+        ).fetchall()
+        return [str(r[0]) for r in rows]
+
+    def set_embeddings(self, model: str, items: list[tuple[str, list[float]]]) -> None:
+        """Store vectors (derived data, outside the hash chain) in one transaction."""
+        import array
+
+        rows = [(rid, model, len(v), array.array("f", v).tobytes()) for rid, v in items]
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            self._conn.executemany("INSERT OR REPLACE INTO embeddings VALUES (?,?,?,?)", rows)
+            self._conn.execute("COMMIT")
+        except BaseException:
+            self._conn.execute("ROLLBACK")
+            raise
+
+    def _vec_loaded(self) -> bool:
+        if not hasattr(self, "_vec"):
+            self._vec = False
+            try:
+                import sqlite_vec  # optional
+
+                self._conn.enable_load_extension(True)
+                sqlite_vec.load(self._conn)
+                self._conn.enable_load_extension(False)
+                self._vec = True
+            except Exception:  # not installed, or extensions disabled in this sqlite build
+                self._vec = False
+        return self._vec
+
+    def nearest(self, model: str, vector: list[float], k: int = 20) -> list[tuple[str, float]]:
+        """(record_id, cosine similarity) of the k closest decisions; sqlite-vec when available."""
+        import array
+
+        if self._vec_loaded():
+            rows = self._conn.execute(
+                "SELECT record_id, vec_distance_cosine(vector, ?) AS d FROM embeddings"
+                " WHERE model = ? AND dim = ? ORDER BY d, record_id LIMIT ?",
+                (array.array("f", vector).tobytes(), model, len(vector), k),
+            ).fetchall()
+            return [(str(rid), 1.0 - float(d)) for rid, d in rows]
+        scored = [
+            (sum(x * y for x, y in zip(vector, v, strict=False)), rid)
+            for rid, v in self.embeddings(model).items()
+        ]
+        scored.sort(key=lambda p: (-round(p[0], 6), p[1]))
+        return [(rid, sim) for sim, rid in scored[:k]]
+
+    def embeddings(self, model: str) -> dict[str, list[float]]:
+        import array
+
+        out: dict[str, list[float]] = {}
+        for rid, blob in self._conn.execute(
+            "SELECT record_id, vector FROM embeddings WHERE model = ?", (model,)
+        ):
+            vec = array.array("f")
+            vec.frombytes(blob)
+            out[str(rid)] = vec.tolist()
+        return out
+
     def _ensure_index(self) -> None:
         indexed = self._conn.execute("SELECT COUNT(*) FROM search").fetchone()[0]
         decisions = self._conn.execute(
             "SELECT COUNT(*) FROM records WHERE record_type = 'decision'"
         ).fetchone()[0]
-        if indexed == decisions:
+        version = self._conn.execute(
+            "SELECT value FROM meta WHERE key = 'index_version'"
+        ).fetchone()
+        if indexed == decisions and version and version[0] == INDEX_VERSION:
             return
         self._conn.execute("BEGIN IMMEDIATE")
         try:
             self._conn.execute("DELETE FROM search")
+            self._conn.execute("DELETE FROM refs")
             rows = self._conn.execute(
                 "SELECT body, prev_hash, hash FROM records WHERE record_type = 'decision'"
             ).fetchall()
             for row in rows:
                 rec = self._row_to_record(row)
                 assert isinstance(rec, DecisionTrace)
-                self._conn.execute(
-                    "INSERT INTO search (record_id, text) VALUES (?, ?)", (rec.id, index_text(rec))
-                )
+                self._index(rec)
+            self._conn.execute(
+                "INSERT OR REPLACE INTO meta VALUES ('index_version', ?)", (INDEX_VERSION,)
+            )
             self._conn.execute("COMMIT")
         except BaseException:
             self._conn.execute("ROLLBACK")
@@ -377,7 +469,7 @@ class Store:
                 problems.append(f"{where}: body is not valid JSON")
             expected_prev = digest
         meta = dict(self._conn.execute("SELECT key, value FROM meta").fetchall())
-        if meta:
+        if "count" in meta:
             if int(meta.get("count", -1)) != count:
                 problems.append(
                     f"store holds {count} records but recorded {meta.get('count')} "

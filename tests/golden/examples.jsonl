@@ -1,0 +1,10 @@
+{"target": "01M4ZCMB", "expect_id": "01M4ZCMBM0", "must_mention": ["refund.max_auto_amount", "waived by user:meera", "partial refund $500", "approved by user:meera"], "must_not_mention": ["no human approval"], "note": "refund over limit with VIP exception"}
+{"target": "01M4ZD6N", "expect_id": "01M4ZD6NJ0", "must_mention": ["refund.window_days", "failed", "no exception was recorded"], "note": "refund denied by window"}
+{"target": "9f3d27e", "expect_id": "01M4ZDRZG0", "must_mention": ["merged a pull request", "not_applicable", "later correction"], "note": "PR merge, commit lookup, correction applied"}
+{"target": "c1a90b2", "expect_id": "01M4ZEB9E0", "must_mention": ["due dates are a day early", "add +1 day offset", "reverted", "broke month-end invoices"], "note": "code edit by commit, reverted outcome"}
+{"target": "src/billing/due_dates.py", "expect_id": "01M4ZEB9E0", "must_mention": ["timezone"], "note": "lookup by file"}
+{"target": "01M4ZEXK", "expect_id": "01M4ZEXKC0", "must_mention": ["edited by praveen", "approved by praveen", "offer 10% discount"], "note": "email edited by human"}
+{"target": "01M4ZFFX", "expect_id": "01M4ZFFXA0", "must_mention": ["git push --force", "rejected by policy", "bash(git push --force:*)"], "note": "tool call denied"}
+{"target": "01M4ZG27", "expect_id": "01M4ZG2780", "must_mention": ["authority.procurement_agent", "escalated by agent:procurement", "approved by user:arjun (finance_controller)", "split into 3 pos"], "note": "procurement escalated"}
+{"target": "CLAUDE.md", "expect_id": "01M4ZGMH60", "must_mention": ["changed its own instructions"], "note": "memory write by file"}
+{"target": "01M4ZH6V", "expect_id": "01M4ZH6V40", "must_mention": ["delegated work to a subagent", "search directly in main context"], "note": "delegation parent"}

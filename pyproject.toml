@@ -31,6 +31,15 @@ Issues = "https://github.com/vpsingh88/liquicent-decisiontrace/issues"
 [project.scripts]
 dt = "decisiontrace.cli:app"
 
+[project.optional-dependencies]
+embeddings = [
+    "model2vec>=0.6",
+    "sqlite-vec>=0.1.6",
+]
+llm = [
+    "anthropic>=1.0",
+]
+
 [dependency-groups]
 dev = [
     "mypy>=1.10",
@@ -76,3 +85,7 @@ warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[[tool.mypy.overrides]]
+module = ["model2vec", "model2vec.*", "sqlite_vec"]
+ignore_missing_imports = true

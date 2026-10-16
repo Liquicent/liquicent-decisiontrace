@@ -148,3 +148,22 @@ def test_export_round_trip(store: Store, tmp_path: Any) -> None:
 def test_new_records_get_valid_ids(store: Store) -> None:
     rec = {**synthetic_decisions(1)[0], "id": new_ulid()}
     assert store.append(rec).record.id == rec["id"]
+
+
+def test_empty_store_verifies(store: Store) -> None:
+    assert store.verify().ok
+
+
+def test_index_is_not_rebuilt_on_every_open(config: Any) -> None:
+    with Store.open(config) as s:
+        s.append_many(synthetic_decisions(5))  # no file/commit refs
+    with Store.open(config) as s:
+        s._conn.execute("INSERT INTO search (record_id, text) VALUES ('marker', 'x')")
+    with Store.open(config) as s:
+        # a rebuild would have wiped the marker row; counts differ so it *should* rebuild here
+        assert s._conn.execute("SELECT COUNT(*) FROM search").fetchone()[0] == 5
+        s._conn.execute("UPDATE meta SET value = 'old' WHERE key = 'index_version'")
+    with Store.open(config) as s:
+        assert (
+            s._conn.execute("SELECT value FROM meta WHERE key='index_version'").fetchone()[0] == "2"
+        )

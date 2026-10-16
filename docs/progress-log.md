@@ -229,3 +229,33 @@ Live check in the Claude Desktop app itself: pending (needs Praveen's machine).
 
 **Other:** benchmark still 35.8 s with the FTS index. Ruff E501 dropped in favour of the
 formatter (ruff's recommended setup).
+
+## 2026-10-16 — Phase 4 done: recall engine (real-trace golden set pending)
+
+**Built**
+- `recall/similarity.py`: the paper's `Sim = αP + βX + γC + δA + εT − λΔt`, every component in
+  [0,1]; P weights shared rules by result agreement and exceptions on the same rule; weights
+  and strong/weak thresholds (0.75 / 0.60) configurable under `[recall]`. Terms that neither
+  decision has (no policies / no alternatives) drop out of the denominator, so identical
+  coding decisions still score 1.0. Candidate filter `Pi ∩ Pj ≠ ∅`, falling back to the
+  same kind family, then full-text — fixes the empty-candidate problem for coding traces.
+- Optional embeddings (`[embeddings]` extra: model2vec + sqlite-vec, no PyTorch): vectors
+  are derived data outside the chain; `store.nearest` uses `vec_distance_cosine` when
+  sqlite-vec loads, pure Python otherwise (tested to agree). Blended into C and into
+  free-text search. Off by default; FTS5 needs no download. *Not tested with a real model
+  here — huggingface.co is blocked from this environment; covered by a hashing embedder.*
+- Indexes: `refs` (files written/read, commits before/after → decision), index version in
+  meta so rebuilds happen only when the index format changes.
+- `dt why <id|file|commit>`: deterministic plain-English account (context, rules incl.
+  not-applicable, exceptions and who, rejected options, people, actions, resulting commit,
+  outcome history, corrections, similar precedents). Never invents a reason.
+- `dt similar <id|text>` with P/X/C/A/T/Δt breakdown; `dt ask` (time windows, outcome,
+  exception/denial/approval/failed-rule filters, cost ordering, counts) offline;
+  `--llm` sends only redacted precedent views to `claude-opus-5-5` with server-side
+  refusal fallback (`fallbacks: "default"`); `[llm]` extra.
+- `dt eval <golden.jsonl>` and `dt eval --sample 20 -o golden.jsonl` (drafts cases from real
+  traces for hand-checking); `dt reindex`.
+
+**Exit test**: golden set over the 10 example decisions: 10/10 (it caught a real bug —
+not-applicable rules were missing from explanations). *Praveen's 20-item golden set from
+his own traces: pending (needs ~1–2 weeks of dogfood; run `dt eval --sample 20`).*
