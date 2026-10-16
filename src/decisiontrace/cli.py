@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import json
+import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, NoReturn
 
 import typer
 from pydantic import ValidationError
 
 from decisiontrace import __version__
-from decisiontrace.model import parse_record
+from decisiontrace.config import Config, default_home, init_home, load_config
+from decisiontrace.ids import new_ulid
+from decisiontrace.model import SCHEMA_VERSION, DecisionTrace, parse_record, to_json_dict
 from decisiontrace.schema import schema_errors, schema_path
+from decisiontrace.store import Store, StoreError
+from decisiontrace.views import current_outcome, render_trace, short
 
 app = typer.Typer(
     help="DecisionTrace: record why your AI made a decision, and recall it later.",
@@ -19,12 +25,44 @@ app = typer.Typer(
     add_completion=False,
 )
 
+HomeOption = Annotated[
+    Path | None,
+    typer.Option("--home", envvar="DT_HOME", help="Store directory [default: ~/.decisiontrace]"),
+]
+
+
+class _State:
+    home: Path | None = None
+
+
+state = _State()
+
+
+@app.callback()
+def main(home: HomeOption = None) -> None:
+    state.home = home
+
+
+def _config() -> Config:
+    return load_config(state.home or default_home())
+
+
+def _open_store() -> Store:
+    config = _config()
+    if not config.db_path.exists():
+        typer.echo(f"No store at {config.home}. Run: dt init", err=True)
+        raise typer.Exit(code=2)
+    return Store.open(config)
+
+
+def _fail(message: str) -> NoReturn:
+    typer.echo(f"error: {message}", err=True)
+    raise typer.Exit(code=1)
+
 
 @app.command()
 def version() -> None:
     """Show the package and schema versions."""
-    from decisiontrace.model import SCHEMA_VERSION
-
     typer.echo(f"decisiontrace {__version__} (schema {SCHEMA_VERSION})")
 
 
@@ -35,21 +73,26 @@ def schema() -> None:
 
 
 @app.command()
+def init() -> None:
+    """Create the local store (safe to run again)."""
+    config = init_home(state.home or default_home())
+    with Store.open(config) as store:
+        count = store.count()
+    typer.echo(f"DecisionTrace store ready at {config.db_path} ({count} records)")
+    typer.echo(f"Config: {config.config_path}  (bodies stored: {str(config.store_bodies).lower()})")
+
+
+@app.command()
 def validate(
     paths: Annotated[list[Path], typer.Argument(help=".json or .jsonl files of records")],
 ) -> None:
-    """Check records against the schema and the Python models."""
+    """Check records against the schema and the Python models (without storing them)."""
     failures = 0
     count = 0
     for path in paths:
         for label, data in _read_records(path):
             count += 1
-            problems = schema_errors(data)
-            if not problems:
-                try:
-                    parse_record(data)
-                except ValidationError as exc:
-                    problems = [f"model: {e['msg']} at {e['loc']}" for e in exc.errors()]
+            problems = _problems(data)
             if problems:
                 failures += 1
                 typer.echo(f"FAIL {label}", err=True)
@@ -60,6 +103,170 @@ def validate(
         raise typer.Exit(code=1)
 
 
+@app.command()
+def append(
+    paths: Annotated[list[Path], typer.Argument(help=".json or .jsonl files of records")],
+) -> None:
+    """Validate, redact and append records to the store (all or nothing)."""
+    batch: list[dict[str, Any]] = []
+    for path in paths:
+        for label, data in _read_records(path):
+            problems = _problems(data)
+            if problems:
+                _fail(f"{label}: {problems[0]}")
+            batch.append(data)
+    with _open_store() as store:
+        try:
+            results = store.append_many(batch)
+        except StoreError as exc:
+            _fail(str(exc))
+    redacted = sum(r.redactions for r in results)
+    note = f" ({redacted} values redacted)" if redacted else ""
+    typer.echo(f"Appended {len(results)} records{note}")
+
+
+@app.command()
+def log(
+    limit: Annotated[int, typer.Option("--limit", "-n", help="How many decisions")] = 20,
+    kind: Annotated[str | None, typer.Option(help="Filter by decision kind prefix")] = None,
+    since: Annotated[str | None, typer.Option(help="Only after this date (YYYY-MM-DD)")] = None,
+) -> None:
+    """List recent decisions, newest first."""
+    with _open_store() as store:
+        rows = list(
+            store.records(record_type="decision", decision_kind=kind, since=since, limit=limit)
+        )
+        if not rows:
+            typer.echo("No decisions recorded yet.")
+            return
+        for rec in rows:
+            assert isinstance(rec, DecisionTrace)
+            outcome = current_outcome(rec, store.related(rec.id))
+            when = rec.actor_time.started_at.strftime("%Y-%m-%d %H:%M")
+            intent = rec.intent if len(rec.intent) <= 60 else rec.intent[:59] + "…"
+            typer.echo(f"{when}  {short(rec.id)}  {rec.decision_kind:<22} {intent}  [{outcome}]")
+
+
+@app.command()
+def show(
+    record_id: Annotated[str, typer.Argument(help="Record id or unique prefix")],
+    as_json: Annotated[bool, typer.Option("--json", help="Raw records as JSON")] = False,
+) -> None:
+    """Show one decision with its rules, exceptions, alternatives, approvals and outcome."""
+    with _open_store() as store:
+        try:
+            rec = store.get(record_id)
+        except StoreError as exc:
+            _fail(str(exc))
+        if not isinstance(rec, DecisionTrace):
+            rec = store.get(rec.trace_id)
+        assert isinstance(rec, DecisionTrace)
+        related = store.related(rec.id)
+        if as_json:
+            out = [to_json_dict(rec), *(to_json_dict(r) for r in related)]
+            typer.echo(json.dumps(out, indent=2, ensure_ascii=False))
+            return
+        typer.echo(render_trace(rec, related, store.links_to(rec.id)))
+
+
+@app.command()
+def outcome(
+    record_id: Annotated[str, typer.Argument(help="Decision id or unique prefix")],
+    accepted: Annotated[bool, typer.Option("--accepted", help="It worked")] = False,
+    reverted: Annotated[bool, typer.Option("--reverted", help="It was undone")] = False,
+    overridden: Annotated[bool, typer.Option("--overridden", help="A human overrode it")] = False,
+    escalated: Annotated[bool, typer.Option("--escalated", help="It had to go up a level")] = False,
+    failed: Annotated[bool, typer.Option("--failed", help="It failed")] = False,
+    complained: Annotated[bool, typer.Option("--complained", help="Someone complained")] = False,
+    note: Annotated[str | None, typer.Option("--note", help="What happened")] = None,
+    value_usd: Annotated[float | None, typer.Option(help="Money gained (+) or lost (-)")] = None,
+    by: Annotated[str, typer.Option(help="Who is recording this")] = "user:local",
+) -> None:
+    """Record what happened after a decision (appended; the decision is never edited)."""
+    flags = {
+        "accepted": accepted,
+        "reverted": reverted,
+        "overridden": overridden,
+        "escalated": escalated,
+        "failed": failed,
+        "complained": complained,
+    }
+    chosen = [k for k, v in flags.items() if v]
+    if len(chosen) > 1:
+        _fail("choose one outcome flag")
+    status = chosen[0] if chosen else ("other" if note else None)
+    if status is None:
+        _fail("give an outcome flag (e.g. --accepted) or --note")
+    with _open_store() as store:
+        try:
+            trace = store.get(record_id)
+        except StoreError as exc:
+            _fail(str(exc))
+        if not isinstance(trace, DecisionTrace):
+            _fail(f"{record_id} is not a decision")
+        record: dict[str, Any] = {
+            "record_type": "outcome",
+            "schema_version": SCHEMA_VERSION,
+            "id": new_ulid(),
+            "namespace": trace.namespace,
+            "trace_id": trace.id,
+            "status": status,
+            "recorded_by": {"type": "human", "id": by},
+            "recorded_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        if note:
+            record["note"] = note
+        if value_usd is not None:
+            record["value_usd"] = value_usd
+        store.append(record)
+    typer.echo(f"Recorded outcome '{status}' for {short(trace.id)}: {trace.intent}")
+
+
+@app.command()
+def verify() -> None:
+    """Recompute the hash chain and report any tampering."""
+    with _open_store() as store:
+        result = store.verify()
+    if result.ok:
+        typer.echo(f"OK: {result.count} records, chain intact")
+        typer.echo(f"head {result.head}")
+        return
+    typer.echo(f"TAMPERED: {len(result.problems)} problem(s) in {result.count} records", err=True)
+    for problem in result.problems[:50]:
+        typer.echo(f"  {problem}", err=True)
+    raise typer.Exit(code=1)
+
+
+@app.command()
+def export(
+    jsonl: Annotated[
+        bool, typer.Option("--jsonl", help="JSON Lines (the only format for now)")
+    ] = True,
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="File (default stdout)")
+    ] = None,
+) -> None:
+    """Export every record, oldest first, with its hash-chain fields."""
+    del jsonl
+    with _open_store() as store:
+        if output:
+            with output.open("w", encoding="utf-8") as fh:
+                n = store.export_jsonl(fh)
+            typer.echo(f"Exported {n} records to {output}", err=True)
+        else:
+            store.export_jsonl(sys.stdout)
+
+
+def _problems(data: Any) -> list[str]:
+    problems = schema_errors(data)
+    if not problems:
+        try:
+            parse_record(data)
+        except ValidationError as exc:
+            problems = [f"model: {e['msg']} at {e['loc']}" for e in exc.errors()]
+    return problems
+
+
 def _read_records(path: Path) -> list[tuple[str, Any]]:
     text = path.read_text(encoding="utf-8")
     if path.suffix == ".jsonl":
@@ -68,4 +275,7 @@ def _read_records(path: Path) -> list[tuple[str, Any]]:
             for n, line in enumerate(text.splitlines(), start=1)
             if line.strip()
         ]
-    return [(str(path), json.loads(text))]
+    data = json.loads(text)
+    if isinstance(data, list):
+        return [(f"{path}[{i}]", item) for i, item in enumerate(data)]
+    return [(str(path), data)]

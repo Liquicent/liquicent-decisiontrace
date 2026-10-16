@@ -7,9 +7,9 @@ the context it used, the rules it checked, the exceptions granted, the options i
 who approved it, and what happened next. Records are append-only, tamper-evident and stay on
 your machine.
 
-> **Status: pre-alpha (Phase 0 of 6).** The schema, models and `dt validate` work today.
-> The local store, Claude Code adapter, MCP server and `dt why` are next — see
-> [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
+> **Status: pre-alpha.** Schema, local store (append-only, hash-chained, redacted) and
+> `dt init / append / log / show / outcome / verify / export` work today. The Claude Code
+> adapter, MCP server and `dt why` are next — see [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
 
 ## The record
 
@@ -32,7 +32,11 @@ See [`schema/README.md`](schema/README.md) and [`schema/examples/`](schema/examp
 ```bash
 git clone https://github.com/vpsingh88/liquicent-decisiontrace && cd liquicent-decisiontrace
 uv sync
-uv run dt validate schema/examples/*.json
+uv run dt init
+uv run dt append schema/examples/*.json   # load the example decisions
+uv run dt log
+uv run dt show 01M4ZCMB                   # the $850 refund: rules, exception, approval
+uv run dt verify                          # recompute the hash chain
 ```
 
 ## Principles

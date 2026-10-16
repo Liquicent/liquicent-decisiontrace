@@ -147,3 +147,35 @@ verify/export, 100k benchmark, tamper test.
 
 **For Praveen (GitHub settings, 2 minutes):** enable *Private vulnerability reporting*
 (Settings → Code security) so SECURITY.md works; add repo topics.
+
+## 2026-10-16 — Phase 1 done: local store
+
+Praveen: open source = company Phase 1 (all of BUILD_PLAN 0–6, this repo); Valence = Phase 2
+and Liquicent = Phase 3, both in private repos. Working through BUILD_PLAN phases in order.
+
+**Built**
+- `store/`: SQLite (WAL) with append-only triggers on records and links, per-store hash
+  chain (`sha256(prev ‖ canonical JSON)`, genesis = 64 zeros), head count/hash in meta,
+  migrations via `user_version`. Outcomes/corrections are linked appends; unknown
+  `trace_id` rejected; batches are all-or-nothing.
+- Opt-in bodies in a separate, erasable table outside the chain (`forget_bodies`), so GDPR
+  erasure never breaks `verify`.
+- `redact.py`: secrets (Anthropic, OpenAI, Stripe, GitHub, Slack, AWS, Google, JWT, private
+  keys, bearer tokens, URL credentials, `password=`-style assignments) removed; e-mail,
+  phone, PAN, Aadhaar (Verhoeff), cards (Luhn) pseudonymised with a per-store salt.
+- `config.py`: `~/.decisiontrace` (or `DT_HOME` / `--home`), `config.toml` with salt.
+- CLI: `dt init / append / log / show / outcome / verify / export` (+ `validate`).
+  `show` applies corrections and later outcomes without touching stored records.
+
+**Exit test**
+- 100k synthetic traces: 33.8 s to write, 3 s to verify (limit 60 s). CI job added.
+- Tamper tests: edited field, edited + re-hashed row, deleted middle row, truncated tail,
+  altered index column — all fail `verify`.
+- Redaction suite (true positives and negatives) passes; planted secrets never appear in
+  any file under the store directory, including WAL.
+
+**Known limit:** the chain is tamper-*evident*, not tamper-proof: someone who rewrites the
+whole file and the meta row can forge it. `dt verify` prints the head hash so it can be
+anchored elsewhere (e.g. committed to git). Noted for the docs.
+
+**Next:** Phase 2 — Claude Code adapter.
