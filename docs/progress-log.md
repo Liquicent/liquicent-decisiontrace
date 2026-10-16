@@ -56,3 +56,35 @@ Claude Code appends a dated entry here at the end of every session.
 
 **Next**
 - Phase 0.
+
+## 2026-10-16 — Second batch reviewed (Full Design 2.0, Deployable Agentic Systems, Embedded Transformer, 2.1/2.2 HLD + UTG spec)
+
+**Schema additions for Phase 0**
+- `action` (`U_t`) plus `state_before` / `state_after` *references* (e.g. git SHA, file hashes),
+  so a trace also satisfies Full Design 2.0's definition (realized transition
+  `(X_t, U_t, X_{t+1})` + constraint evaluations).
+- Policy entries carry `policy_id` + `version`/`hash` (UTG: "versioned by policy hash") and
+  `enforced: bool` (NKP-style hard constraint vs advisory rule).
+- `namespace` field from v0.1 (tenant isolation of DecisionTrace graphs, Deployable §7).
+  Defaults to the local user; cheap now, painful to add later.
+- Typed links, using the UTG edge names: `decision`, `context`, `precedent`, `reversal`,
+  `exec`, plus `delegation` for parent→child traces (A2A trace reference; Claude Code
+  subagents). Traces form a DAG; the hash chain is separate and per-store.
+- Memory writes (e.g. an agent editing CLAUDE.md or a memory file) are a decision kind, so the
+  attribution invariant (every memory mutation → one trace) can hold.
+
+**New invariants / tests**
+- Record execution, not cognition: never store model reasoning / chain-of-thought, even with
+  body storage on. Only inputs, evaluations, actions, approvals, outcomes.
+- Completeness (Full Design Thm 2): every executed tool call belongs to exactly one trace.
+  Phase 2 adds a test for this.
+- Record enough to replay later (input hashes, model id, params), but replay itself stays out
+  of v0.1.
+
+**Out of scope here, but noted**
+- WorkRank and TrustRank formulas differ across papers (WorkRank: `A·Q/(1+R)` vs
+  `Capability·T·CostEff` vs EMA; TrustRank: EMA vs `τ + ηA − μR − νO`). Valence will need
+  one canonical version; this repo only records the outcome signals both need.
+- The HLD's first wedge (PR governance / code review) matches the Claude Code adapter; PR
+  merge and code edit are among the Phase 0 example traces.
+- Embedded Transformer / belief-state cognition: no impact on this repo.
