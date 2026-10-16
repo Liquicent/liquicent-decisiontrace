@@ -12,6 +12,7 @@ TYPE_CHECKING = False
 if TYPE_CHECKING:  # keep `typing` out of the hook's import path
     from typing import Any
 
+    from decisiontrace.adapters.sdk import wrap
     from decisiontrace.model import (
         SCHEMA_VERSION,
         CorrectionRecord,
@@ -20,8 +21,16 @@ if TYPE_CHECKING:  # keep `typing` out of the hook's import path
         parse_record,
         to_json_dict,
     )
+    from decisiontrace.recorder import approval, context, decision, exception, policy, reject
 
 _LAZY = {
+    "wrap": "decisiontrace.adapters.sdk",
+    "decision": "decisiontrace.recorder",
+    "policy": "decisiontrace.recorder",
+    "exception": "decisiontrace.recorder",
+    "approval": "decisiontrace.recorder",
+    "reject": "decisiontrace.recorder",
+    "context": "decisiontrace.recorder",
     "SCHEMA_VERSION": "decisiontrace.model",
     "CorrectionRecord": "decisiontrace.model",
     "DecisionTrace": "decisiontrace.model",
@@ -36,8 +45,15 @@ __all__ = [
     "DecisionTrace",
     "OutcomeRecord",
     "__version__",
+    "approval",
+    "context",
+    "decision",
+    "exception",
     "parse_record",
+    "policy",
+    "reject",
     "to_json_dict",
+    "wrap",
 ]
 
 

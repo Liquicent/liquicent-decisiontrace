@@ -404,6 +404,80 @@ def eval_golden(
         raise typer.Exit(code=1)
 
 
+@app.command(name="ingest-otel")
+def ingest_otel(
+    port: Annotated[int, typer.Option(help="OTLP/HTTP port to listen on")] = 4318,
+    host: Annotated[
+        str, typer.Option(help="Interface (keep 127.0.0.1 unless you mean it)")
+    ] = "127.0.0.1",
+    file: Annotated[
+        list[Path] | None, typer.Option("--file", "-f", help="Ingest OTLP JSON file(s) and exit")
+    ] = None,
+    settle: Annotated[
+        float, typer.Option(help="Seconds a trace must be quiet before it's stored")
+    ] = 2.0,
+) -> None:
+    """Receive OpenTelemetry GenAI spans (OTLP/HTTP) and store them as decisions."""
+    import threading
+    import time
+
+    from decisiontrace.adapters.otel.ingest import (
+        Buffer,
+        decisions_from_spans,
+        make_server,
+        parse_otlp_json,
+        store_decisions,
+    )
+
+    config = _config()
+    if not config.db_path.exists():
+        config = init_home(config.home)
+    if file:
+        spans = []
+        for path in file:
+            text = path.read_text(encoding="utf-8").strip()
+            payloads = (
+                [json.loads(line) for line in text.splitlines() if line.strip()]
+                if path.suffix == ".jsonl"
+                else [json.loads(text)]
+            )
+            for payload in payloads:
+                spans += parse_otlp_json(payload)
+        with Store.open(config) as store:
+            added = store_decisions(store, decisions_from_spans(spans, config.namespace))
+        typer.echo(f"{added} decisions from {len(spans)} spans")
+        return
+    buffer = Buffer(lambda: Store.open(config), config.namespace, settle)
+    server = make_server(buffer, host, port)
+    stop = threading.Event()
+
+    def flusher() -> None:
+        while not stop.is_set():
+            time.sleep(0.5)
+            try:
+                if n := buffer.flush():
+                    typer.echo(f"stored {n} decision(s)", err=True)
+            except Exception as exc:
+                typer.echo(f"flush failed: {exc}", err=True)
+
+    threading.Thread(target=flusher, daemon=True).start()
+    typer.echo(
+        f"Listening for OTLP/HTTP on http://{host}:{port}/v1/traces  (Ctrl-C to stop)", err=True
+    )
+    typer.echo(
+        "Point your exporter at it: OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318", err=True
+    )
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop.set()
+        server.server_close()
+        buffer.flush(force=True)
+        typer.echo(f"{buffer.added} decisions stored", err=True)
+
+
 TARGETS = ("claude-code", "claude-desktop", "cursor")
 MCP_TARGETS = ("claude-desktop", "cursor")
 ScopeOption = Annotated[

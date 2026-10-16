@@ -259,3 +259,27 @@ formatter (ruff's recommended setup).
 **Exit test**: golden set over the 10 example decisions: 10/10 (it caught a real bug —
 not-applicable rules were missing from explanations). *Praveen's 20-item golden set from
 his own traces: pending (needs ~1–2 weeks of dogfood; run `dt eval --sample 20`).*
+
+## 2026-10-16 — Phase 5 done: SDK and OTel adapters
+
+**Built**
+- `recorder.py`: public API for any framework — `with dt.decision(...) as d:` plus
+  `dt.policy / exception / approval / reject / context` that attach to the decision being
+  recorded (contextvar). Never raises; errors to `recorder-errors.log`.
+- `adapters/loop.py`: provider-neutral tool-loop tracker (one loop = one decision; answered
+  calls → actions, unanswered → rejected alternatives; tokens summed; outcome `pending`).
+- `dt.wrap(client)`: Anthropic (`create`, `parse`, `stream`, sync + async, incl. `beta` —
+  covers the SDK tool runner, which uses `beta.messages.parse/stream`) and OpenAI (Chat
+  Completions + Responses, duck-typed). Awaitables detected at call time (the SDK's
+  decorators hide coroutine functions).
+- `dt ingest-otel`: OTLP/HTTP receiver (JSON; protobuf with `[otel]`), `--file` mode,
+  per-trace buffering, idempotent ids; GenAI spans → decisions, `decisiontrace.*` span events
+  → P/E/H/X; message content never read.
+- Examples: `refund_agent.py` (showcase — P, E, X, H, O; offline scripted model via the real
+  SDK client + mock transport, `--live` for real Claude) and `otel_agent.py` (real OTel SDK
+  + OTLP protobuf exporter, embedded ingester).
+
+**Exit test** ✓ — both examples run from a clean clone in one command and `dt why` explains
+the result (rule failed, Meera's exception and approval, actions). Tested on the real
+Anthropic SDK (1.15) incl. tool runner, async and SSE streaming; real OTLP protobuf
+exporter end to end. `--live` against the real API not run here (no key in this env).

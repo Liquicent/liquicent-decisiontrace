@@ -39,10 +39,15 @@ embeddings = [
 llm = [
     "anthropic>=1.0",
 ]
+otel = [
+    "opentelemetry-proto>=1.25",
+]
 
 [dependency-groups]
 dev = [
     "mypy>=1.10",
+    "opentelemetry-exporter-otlp-proto-http>=1.25",
+    "opentelemetry-sdk>=1.25",
     "pytest>=8",
     "ruff>=0.6",
     "types-jsonschema",
@@ -76,6 +81,7 @@ ignore = ["E501"]
 [tool.mypy]
 strict = true
 python_version = "3.11"
+mypy_path = "examples"
 plugins = ["pydantic.mypy"]
 
 [tool.pydantic-mypy]
@@ -87,5 +93,5 @@ warn_required_dynamic_aliases = true
 testpaths = ["tests"]
 
 [[tool.mypy.overrides]]
-module = ["model2vec", "model2vec.*", "sqlite_vec"]
+module = ["model2vec", "model2vec.*", "sqlite_vec", "google.protobuf.*"]
 ignore_missing_imports = true
