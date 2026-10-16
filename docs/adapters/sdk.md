@@ -3,7 +3,7 @@
 ```python
 import anthropic, decisiontrace as dt
 
-client = dt.wrap(anthropic.Anthropic())        # or openai.OpenAI(), AsyncAnthropic(), AsyncOpenAI()
+client = dt.wrap(anthropic.Anthropic())  # or openai.OpenAI(), AsyncAnthropic(), AsyncOpenAI()
 ```
 
 That's the only change. Each tool-use loop — from the first user message until the model
