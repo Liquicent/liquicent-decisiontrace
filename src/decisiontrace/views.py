@@ -89,8 +89,18 @@ def render_trace(
     ]
     if at.model:
         lines.append(f"  model {at.model.provider}/{at.model.name}")
-    if at.cost and at.cost.usd is not None:
-        lines.append(f"  cost ${at.cost.usd:.4f}")
+    if at.cost:
+        parts = []
+        if at.cost.usd is not None:
+            parts.append(f"${at.cost.usd:.4f}")
+        if at.cost.input_tokens is not None or at.cost.output_tokens is not None:
+            parts.append(
+                f"{at.cost.input_tokens or 0:,} in / {at.cost.output_tokens or 0:,} out tokens"
+            )
+        if at.cost.cache_read_input_tokens:
+            parts.append(f"{at.cost.cache_read_input_tokens:,} cached")
+        if parts:
+            lines.append("  cost " + ", ".join(parts))
     if t.context and (t.context.inputs or t.context.state_before):
         lines += ["", "Context (C)"]
         for item in t.context.inputs or []:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import time
 from datetime import UTC, datetime
@@ -16,6 +17,19 @@ def new_ulid(timestamp_ms: int | None = None) -> str:
     if not 0 <= ms < 1 << 48:
         raise ValueError("timestamp out of ULID range")
     value = (ms << 80) | int.from_bytes(os.urandom(10), "big")
+    chars = []
+    for _ in range(26):
+        chars.append(_ALPHABET[value & 31])
+        value >>= 5
+    return "".join(reversed(chars))
+
+
+def stable_ulid(timestamp_ms: int, seed: str) -> str:
+    """ULID whose random part is derived from ``seed``: re-processing gives the same id."""
+    if not 0 <= timestamp_ms < 1 << 48:
+        raise ValueError("timestamp out of ULID range")
+    rand = int.from_bytes(hashlib.sha256(seed.encode()).digest()[:10], "big")
+    value = (timestamp_ms << 80) | rand
     chars = []
     for _ in range(26):
         chars.append(_ALPHABET[value & 31])

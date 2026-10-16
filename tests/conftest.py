@@ -23,8 +23,11 @@ def refund_example() -> dict[str, Any]:
 @pytest.fixture
 def config(tmp_path: Path) -> Any:
     from decisiontrace.config import init_home
+    from decisiontrace.store import Store
 
-    return init_home(tmp_path / "dt")
+    cfg = init_home(tmp_path / "dt")
+    Store.open(cfg).close()  # like `dt init`: config + database
+    return cfg
 
 
 @pytest.fixture

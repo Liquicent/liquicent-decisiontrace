@@ -47,11 +47,15 @@ def _config() -> Config:
     return load_config(state.home or default_home())
 
 
-def _open_store() -> Store:
+def _open_store(drain_first: bool = False) -> Store:
     config = _config()
     if not config.db_path.exists():
         typer.echo(f"No store at {config.home}. Run: dt init", err=True)
         raise typer.Exit(code=2)
+    if drain_first:
+        from decisiontrace.adapters.claude_code.drain import drain
+
+        drain(config.home)
     return Store.open(config)
 
 
@@ -132,7 +136,7 @@ def log(
     since: Annotated[str | None, typer.Option(help="Only after this date (YYYY-MM-DD)")] = None,
 ) -> None:
     """List recent decisions, newest first."""
-    with _open_store() as store:
+    with _open_store(drain_first=True) as store:
         rows = list(
             store.records(record_type="decision", decision_kind=kind, since=since, limit=limit)
         )
@@ -153,7 +157,7 @@ def show(
     as_json: Annotated[bool, typer.Option("--json", help="Raw records as JSON")] = False,
 ) -> None:
     """Show one decision with its rules, exceptions, alternatives, approvals and outcome."""
-    with _open_store() as store:
+    with _open_store(drain_first=True) as store:
         try:
             rec = store.get(record_id)
         except StoreError as exc:
@@ -255,6 +259,68 @@ def export(
             typer.echo(f"Exported {n} records to {output}", err=True)
         else:
             store.export_jsonl(sys.stdout)
+
+
+TARGETS = ("claude-code",)
+ScopeOption = Annotated[
+    str, typer.Option("--scope", help="user (all projects), project, or local (not committed)")
+]
+
+
+@app.command()
+def install(
+    target: Annotated[str, typer.Argument(help="What to hook into: claude-code")],
+    scope: ScopeOption = "user",
+) -> None:
+    """Start recording decisions from a tool you already use."""
+    if target not in TARGETS:
+        _fail(f"unknown target {target!r}; choose from: {', '.join(TARGETS)}")
+    from decisiontrace.adapters.claude_code.install import install as do_install
+
+    config = init_home(state.home or default_home())
+    Store.open(config).close()
+    try:
+        path = do_install(scope)
+    except ValueError as exc:
+        _fail(str(exc))
+    typer.echo(f"Claude Code hooks installed in {path}")
+    typer.echo(f"Decisions go to {config.db_path}. Remove with: dt uninstall claude-code")
+    if config.home != default_home():
+        typer.echo(f"Note: set DT_HOME={config.home} in the environment Claude Code runs in.")
+
+
+@app.command()
+def uninstall(
+    target: Annotated[str, typer.Argument(help="What to unhook: claude-code")],
+    scope: ScopeOption = "user",
+) -> None:
+    """Stop recording (recorded decisions are kept)."""
+    if target not in TARGETS:
+        _fail(f"unknown target {target!r}; choose from: {', '.join(TARGETS)}")
+    from decisiontrace.adapters.claude_code.install import uninstall as do_uninstall
+
+    path, removed = do_uninstall(scope)
+    if removed:
+        typer.echo(f"Removed {removed} DecisionTrace hooks from {path}")
+    else:
+        typer.echo(f"No DecisionTrace hooks found in {path}")
+
+
+@app.command()
+def drain() -> None:
+    """Move queued hook events into the store now (normally automatic)."""
+    from decisiontrace.adapters.claude_code.drain import drain as do_drain
+
+    config = _config()
+    result = do_drain(config.home)
+    if result.skipped_locked:
+        typer.echo("Another drain is running.")
+        return
+    typer.echo(
+        f"{result.added} decisions added from {result.events} events"
+        + (f"; {result.kept} events wait for their turn to finish" if result.kept else "")
+        + (f"; {result.failed} events kept in queue/failed" if result.failed else "")
+    )
 
 
 def _problems(data: Any) -> list[str]:

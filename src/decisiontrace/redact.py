@@ -14,9 +14,11 @@ import hashlib
 import hmac
 import re
 from collections import Counter
-from collections.abc import Callable
-from dataclasses import dataclass, field
-from typing import Any
+
+TYPE_CHECKING = False
+if TYPE_CHECKING:  # typing costs ~7 ms to import; the hook can't afford it
+    from collections.abc import Callable
+    from typing import Any
 
 # Keys whose values are structural (ids, hashes, enums, timestamps). They are skipped only
 # when the value also *looks* structural, so an e-mail used as an actor id is still caught.
@@ -147,12 +149,16 @@ def _verhoeff_ok(digits: str) -> bool:
     return c == 0
 
 
-@dataclass
 class Redactor:
-    """Redacts strings and whole records. ``salt`` keys the PII pseudonyms."""
+    """Redacts strings and whole records. ``salt`` keys the PII pseudonyms.
 
-    salt: bytes = b"decisiontrace"
-    counts: Counter[str] = field(default_factory=Counter)
+    (A plain class, not a dataclass: importing ``dataclasses`` costs ~15 ms, which matters
+    inside a hook that must finish in under 50 ms.)
+    """
+
+    def __init__(self, salt: bytes = b"decisiontrace") -> None:
+        self.salt = salt
+        self.counts: Counter[str] = Counter()
 
     def _pseudonym(self, kind: str, value: str) -> str:
         normalised = re.sub(r"[\s\-()]", "", value).lower()

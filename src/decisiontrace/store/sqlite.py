@@ -278,6 +278,9 @@ class Store:
         ).fetchall()
         return {str(n): str(c) for n, c in rows}
 
+    def has(self, record_id: str) -> bool:
+        return self._exists(record_id)
+
     def count(self) -> int:
         return int(self._conn.execute("SELECT COUNT(*) FROM records").fetchone()[0])
 

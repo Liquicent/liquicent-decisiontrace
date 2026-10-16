@@ -179,3 +179,32 @@ whole file and the meta row can forge it. `dt verify` prints the head hash so it
 anchored elsewhere (e.g. committed to git). Noted for the docs.
 
 **Next:** Phase 2 — Claude Code adapter.
+
+## 2026-10-16 — Phase 2 done: Claude Code adapter (pending Praveen's full-day dogfood)
+
+**Built**
+- `adapters/claude_code/hook.py`: stdlib-only, run as `python -I -S`; redacts, appends one
+  line per event to `queue/<session>.jsonl`; always exit 0, silent; spawns a background
+  drain on Stop/StopFailure/SessionEnd. Median 35 ms (test asserts < 50 ms). Package
+  `__init__` made lazy and `typing`/`dataclasses` kept off the hook's import path for this.
+- `builder.py`: one decision per `prompt_id`; subagents (by `agent_id`) become linked child
+  decisions (`delegation`). Permission outcomes → `policies`; denied / auto-denied /
+  interrupted / blocked calls → `alternatives`; prompts+answers → `human_path`; model,
+  tokens (cache-creation counted as input, streamed lines de-duplicated by message id) and
+  Claude Code version from the transcript; git HEAD before/after read without spawning git.
+  Kind and capabilities inferred from tools (`harness.update` for CLAUDE.md/.claude edits).
+- `drain.py`: flock, stable ULIDs (re-drain never duplicates), unfinished turns re-queued,
+  stale turns (>1 h) flushed, build failures parked in `queue/failed/`.
+- `dt install|uninstall claude-code --scope user|project|local` (preserves other hooks,
+  backup, idempotent), `dt drain`; `log`/`show` drain first.
+
+**Verified against real Claude Code 2.1.301** (`claude -p` in a scratch repo): prompt,
+file read, edit, bash, permission mode, model, 10,950/509 tokens, version, git HEAD all
+recorded; chain verifies.
+
+**Exit test status:** latency ✓ (35 ms), one-command removal ✓, completeness test ✓
+(every executed tool call in exactly one trace). *Full day of real use by Praveen: pending.*
+
+**Hooks doc notes:** no event for an interactive user deny; inferred from
+PermissionRequest with no PostToolUse. `CLAUDE_CODE_VERSION` env not documented; version
+read from transcript instead.
