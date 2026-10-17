@@ -24,6 +24,7 @@ selects the store directory (default `~/.decisiontrace`).
 | `dt why` | Plain-English account of a decision, by id, file path or git commit. |
 | `dt similar` | Rank past decisions by similarity, with the P, X, C, A, T, Δt breakdown. |
 | `dt ask` | Ask a question about your decisions. Works offline; `--llm` uses Claude. |
+| `dt outcomes` (`dt outcomes detect`) | Fill in outcomes from the store, git (`--git`) and business events (`--events --preset stripe\|zendesk\|jira\|github\|pagerduty`); see [outcome detection](outcomes.md). |
 | `dt outcome` | Record what happened after a decision (`--accepted`, `--reverted`, `--overridden`, `--escalated`, `--failed`, `--complained`, `--note`, `--value-usd`). |
 
 ## Integrity and data

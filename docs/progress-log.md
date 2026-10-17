@@ -314,3 +314,11 @@ clear message) and added a `fresh-clone` CI job that runs the README's steps on 
 `dt eval --sample 20 -o golden.jsonl`, fill in, and `dt eval golden.jsonl` (target 80%).
 Then the launch checklist (PyPI, tag, GIF, stranger test). Valence (company phase 2) and
 Liquicent (phase 3) start in private repos and read this store.
+
+## 2026-10-17 — Outcome detection
+
+- `decisiontrace.outcomes` + `dt outcomes detect`: chain, git, event presets, opt-in silence.
+  Human outcomes always win; most serious signal wins; idempotent; `recorded_at` = signal time.
+- Docs: docs/outcomes.md, CLI reference, README.
+- Next: run it daily from the Claude Code hook (e.g. on SessionStart) once real repos confirm
+  the git heuristics (carry window, settle days) don't mislabel squash-merges.

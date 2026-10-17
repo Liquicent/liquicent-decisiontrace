@@ -603,3 +603,87 @@ def _read_records(path: Path) -> list[tuple[str, Any]]:
     if isinstance(data, list):
         return [(f"{path}[{i}]", item) for i, item in enumerate(data)]
     return [(str(path), data)]
+
+
+outcomes_app = typer.Typer(
+    help="Fill in outcomes from signals that already exist.", no_args_is_help=True
+)
+app.add_typer(outcomes_app, name="outcomes")
+
+
+@outcomes_app.command("detect")
+def outcomes_detect(
+    git: Annotated[
+        list[Path] | None,
+        typer.Option("--git", help="Git repository to read reverts and merges from (repeatable)"),
+    ] = None,
+    events: Annotated[
+        list[Path] | None,
+        typer.Option("--events", help="JSON Lines of business-system events (repeatable)"),
+    ] = None,
+    preset: Annotated[
+        str, typer.Option(help="Event format: generic, stripe, zendesk, jira, github, pagerduty")
+    ] = "generic",
+    assume_accepted_after: Annotated[
+        float | None,
+        typer.Option(
+            help="Opt-in: take a decision with no negative signal after N days as accepted"
+        ),
+    ] = None,
+    settle_days: Annotated[
+        float, typer.Option(help="Days a merged commit must survive to count as accepted")
+    ] = 3.0,
+    since: Annotated[
+        str | None, typer.Option(help="Only decisions after this date (YYYY-MM-DD)")
+    ] = None,
+    no_chain: Annotated[
+        bool, typer.Option("--no-chain", help="Skip signals inside the store itself")
+    ] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Show what would be recorded; write nothing")
+    ] = False,
+) -> None:
+    """Detect outcomes: overrides and reversals in the store, git reverts/merges, business events.
+
+    Never overrides an outcome a person recorded; safe to run repeatedly (e.g. daily from cron).
+    """
+    from decisiontrace.outcomes import apply, plan
+    from decisiontrace.outcomes import base as ob
+    from decisiontrace.outcomes import chain as chain_mod
+    from decisiontrace.outcomes import events as events_mod
+    from decisiontrace.outcomes import git as git_mod
+    from decisiontrace.outcomes import silence as silence_mod
+
+    if preset not in events_mod.PRESETS:
+        _fail(f"unknown preset {preset!r}: choose from {', '.join(events_mod.PRESETS)}")
+    with _open_store(drain_first=True) as store:
+        traces = ob.decisions(store, since)
+        signals: list[ob.Signal] = []
+        if not no_chain:
+            signals += chain_mod.detect(traces)
+        for repo in git or []:
+            try:
+                signals += git_mod.detect(traces, repo, settle_days=settle_days)
+            except git_mod.GitError as exc:
+                _fail(f"{repo}: {exc}")
+        if events:
+            evs, skipped = events_mod.read(events, preset)
+            signals += events_mod.detect(traces, evs, preset)
+            if skipped:
+                typer.echo(
+                    f"({skipped} event line(s) not understood by the {preset} preset were skipped)",
+                    err=True,
+                )
+        if assume_accepted_after is not None:
+            signals += silence_mod.detect(traces, assume_accepted_after)
+        todo = plan(store, signals)
+        for s in todo:
+            typer.echo(f"{short(s.trace_id)}  {s.status:<11} {s.source:<16} {s.note[:90]}")
+        if not todo:
+            typer.echo("No new outcomes.")
+            return
+        if dry_run:
+            typer.echo(f"\n{len(todo)} outcome(s) would be recorded (dry run).")
+            return
+        n = apply(store, todo)
+        typer.echo(f"\nRecorded {n} outcome(s). Human-recorded outcomes were left as they are.")

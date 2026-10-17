@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The schema has its own version
 (`schema_version`), independent of the package version.
 
+
+## Unreleased
+
+- `dt outcomes detect`: outcomes from the store (overrides, reversal links, failed actions, human redos), git (reverts, merges) and business events (Stripe, Zendesk, Jira, GitHub, PagerDuty, generic JSONL); opt-in `--assume-accepted-after`. Never overrides a person's outcome.
+
 ## 0.1.0 — unreleased
 
 First public release.
