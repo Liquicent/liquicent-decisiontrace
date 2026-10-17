@@ -10,7 +10,7 @@ selects the store directory (default `~/.decisiontrace`).
 | `dt init` | Create the local store (safe to run again). |
 | `dt install` | Start recording: claude-code (hooks), or claude-desktop / cursor (MCP server). `--scope user\|project\|local` for Claude Code. |
 | `dt uninstall` | Stop recording (recorded decisions are kept). |
-| `dt mcp` | Run the local MCP server (stdio), or print client setup with `--config claude-desktop\|cursor\|claude-code`. |
+| `dt mcp` | Run the local MCP server (stdio), print client setup with `--config claude-desktop\|cursor\|claude-code`, or serve a team over HTTP with `--http` ([self-hosted MCP](adapters/self-hosted-mcp.md)); `--new-token` prints a token. |
 | `dt ingest-otel` | Receive OpenTelemetry GenAI spans (OTLP/HTTP on port 4318), or `--file` OTLP JSON. |
 | `dt append` | Validate, redact and append records from `.json` / `.jsonl` files (all or nothing). |
 | `dt drain` | Move queued Claude Code hook events into the store now (normally automatic). |

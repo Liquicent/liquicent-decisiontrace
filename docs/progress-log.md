@@ -328,3 +328,14 @@ Liquicent (phase 3) start in private repos and read this store.
 - Applied the outcome-detection patch carried in Compounding (`ops/pending`).
 - Links (README, docs, mkdocs, pyproject URLs, schema `$id`) now point to
   `Liquicent/liquicent-decisiontrace`. Valence and Compounding pin this commit.
+
+## 2026-10-17 — Self-hosted MCP server
+
+- `dt mcp --http` (`decisiontrace.mcp_http`): streamable HTTP, stateless JSON; shared token via
+  `Authorization: Bearer` or `/t/<token>/mcp`; refuses off-localhost without a ≥24-char token;
+  `--tools` allow-list; decisions never attributed to the server's OS account (`on_behalf_of`
+  from the assistant instead); access log off; `/healthz`.
+- Deployment: `deploy/self-hosted-mcp/` (Dockerfile, compose with Caddy HTTPS, .env.example);
+  guide `docs/adapters/self-hosted-mcp.md`.
+- Open: OAuth (per-user identity) for connectors — needs an identity provider; next step if
+  clients ask for per-employee attribution.

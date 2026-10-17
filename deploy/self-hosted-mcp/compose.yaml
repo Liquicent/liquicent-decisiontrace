@@ -1,0 +1,33 @@
+# DecisionTrace self-hosted MCP behind Caddy (automatic HTTPS).
+#   cp .env.example .env   # set DT_PUBLIC_HOST and DT_MCP_TOKEN (dt mcp --new-token)
+#   docker compose up -d --build
+services:
+  decisiontrace:
+    build:
+      context: ../..
+      dockerfile: deploy/self-hosted-mcp/Dockerfile
+    environment:
+      DT_MCP_TOKEN: ${DT_MCP_TOKEN:?set DT_MCP_TOKEN in .env}
+    # optional: expose only some tools, e.g. no recall for a company-wide rollout
+    # command: ["dt", "mcp", "--http", "--host", "0.0.0.0", "--port", "8765", "--tools", "record,outcome"]
+    volumes:
+      - dt-data:/data
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    environment:
+      DT_PUBLIC_HOST: ${DT_PUBLIC_HOST:?set DT_PUBLIC_HOST in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - decisiontrace
+    restart: unless-stopped
+
+volumes:
+  dt-data:
+  caddy-data:

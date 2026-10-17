@@ -548,8 +548,58 @@ def mcp(
             "--config", help="Print setup for a client instead: claude-desktop, cursor, claude-code"
         ),
     ] = None,
+    http: Annotated[
+        bool, typer.Option("--http", help="Serve over HTTP for a team (self-hosted)")
+    ] = False,
+    host: Annotated[str, typer.Option(help="HTTP: interface to listen on")] = "127.0.0.1",
+    port: Annotated[int, typer.Option(help="HTTP: port")] = 8765,
+    token: Annotated[
+        str | None,
+        typer.Option(envvar="DT_MCP_TOKEN", help="HTTP: shared token (required off localhost)"),
+    ] = None,
+    tools: Annotated[
+        str, typer.Option(help="HTTP: tools to expose, comma-separated")
+    ] = "record,recall,outcome",
+    client_name: Annotated[
+        str, typer.Option(help="HTTP: client name stored on each decision")
+    ] = "mcp-http",
+    allowed_host: Annotated[
+        list[str] | None,
+        typer.Option(help="HTTP: accepted Host header(s), e.g. dt.acme.com (repeatable)"),
+    ] = None,
+    access_log: Annotated[
+        bool, typer.Option(help="HTTP: log requests (may log a secret URL)")
+    ] = False,
+    new_token: Annotated[
+        bool, typer.Option("--new-token", help="Print a new random token and exit")
+    ] = False,
 ) -> None:
-    """Run the local MCP server (stdio), or print the snippet to configure a client."""
+    """Run the MCP server: local (stdio), or self-hosted over HTTP with --http."""
+    if new_token:
+        from decisiontrace.mcp_http import new_token as make_token
+
+        typer.echo(make_token())
+        return
+    if http:
+        from decisiontrace.mcp_http import build_app
+        from decisiontrace.mcp_http import serve as serve_http
+
+        chosen = [t.strip() for t in tools.split(",") if t.strip()]
+        try:
+            build_app(token, chosen, client_name, host, allowed_host)  # validate before binding
+        except ValueError as exc:
+            _fail(str(exc))
+        typer.echo(
+            f"DecisionTrace MCP on http://{host}:{port}/mcp · tools: {', '.join(chosen)} · "
+            + (
+                "token required (header, or secret URL /t/<token>/mcp)"
+                if token
+                else "no token (localhost only)"
+            ),
+            err=True,
+        )
+        serve_http(host, port, token, chosen, client_name, allowed_host, access_log)
+        return
     if config_for:
         from decisiontrace.adapters.mcp.clients import snippet
 

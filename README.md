@@ -62,6 +62,7 @@ uv run dt why "$(uv run dt log -n 1 | awk '{print $3}')"
 |---|---|---|
 | Claude Code | `dt install claude-code` | [docs/adapters/claude-code.md](docs/adapters/claude-code.md) |
 | Claude Desktop, Cursor, any MCP client | `dt install claude-desktop` / `dt install cursor` | [docs/adapters/mcp.md](docs/adapters/mcp.md) |
+| Claude.ai / ChatGPT workspaces, a whole team | `dt mcp --http` on your own server | [docs/adapters/self-hosted-mcp.md](docs/adapters/self-hosted-mcp.md) |
 | Anthropic or OpenAI SDK | `client = dt.wrap(client)` | [docs/adapters/sdk.md](docs/adapters/sdk.md) |
 | OpenTelemetry GenAI spans | `dt ingest-otel`, point your exporter at it | [docs/adapters/otel.md](docs/adapters/otel.md) |
 | Anything else | `with dt.decision(...) as d:` | [docs/adapters/sdk.md](docs/adapters/sdk.md#without-an-sdk) |

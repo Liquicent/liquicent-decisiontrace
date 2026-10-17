@@ -30,6 +30,7 @@ nav:
       - MCP (Claude Desktop, Cursor): adapters/mcp.md
       - Anthropic & OpenAI SDKs: adapters/sdk.md
       - OpenTelemetry: adapters/otel.md
+      - Self-hosted MCP (teams): adapters/self-hosted-mcp.md
   - Recall (why, similar, ask): recall.md
   - Outcome detection: outcomes.md
   - CLI reference: cli.md

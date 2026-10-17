@@ -97,8 +97,17 @@ def record_decision(
     actions: list[str] | None = None,
     outcome: Literal["pending", "accepted", "reverted", "escalated", "failed"] | None = None,
     agent: str = "mcp-client",
+    on_behalf_of: str | None = None,
+    client_name: str = "mcp",
+    local_user: bool = True,
 ) -> dict[str, Any]:
     now = _now()
+    if on_behalf_of:
+        principal: dict[str, Any] | None = _person(on_behalf_of)
+    elif local_user:
+        principal = {"type": "human", "id": f"user:{_label(getpass.getuser(), 'local')}"}
+    else:
+        principal = None  # a shared server does not know who is behind the request
     agent_actor = {"type": "agent", "id": f"mcp:{_label(agent, 'client')}", "name": agent[:256]}
     record: dict[str, Any] = {
         "record_type": "decision",
@@ -109,8 +118,8 @@ def record_decision(
         "intent": intent.strip()[:500] or "Decision",
         "actor_time": {
             "actor": agent_actor,
-            "on_behalf_of": {"type": "human", "id": f"user:{_label(getpass.getuser(), 'local')}"},
-            "client": {"name": "mcp"},
+            **({"on_behalf_of": principal} if principal else {}),
+            "client": {"name": client_name[:128] or "mcp"},
             "started_at": now,
         },
         "attributes": {"decisiontrace.adapter": "mcp"},
@@ -227,48 +236,81 @@ def record_outcome(
     return {"decision": trace.id, "intent": trace.intent, "status": status}
 
 
-def build_server() -> MCPServer:
+TOOLS = ("record", "recall", "outcome")
+
+
+def build_server(
+    tools: tuple[str, ...] | list[str] = TOOLS, client_name: str = "mcp", local_user: bool = True
+) -> MCPServer:
+    """The MCP server. ``tools`` limits what is exposed (e.g. no ``recall`` on a shared server);
+    ``local_user=False`` for a shared server: decisions are not attributed to its OS account."""
+    unknown = set(tools) - set(TOOLS)
+    if unknown:
+        raise ValueError(
+            f"unknown tool(s): {', '.join(sorted(unknown))}; choose from {', '.join(TOOLS)}"
+        )
     server = MCPServer(name="decisiontrace", title="DecisionTrace", instructions=INSTRUCTIONS)
 
-    @server.tool(
-        name="record",
-        description="Record a decision: rules checked, exceptions, rejected options, approvals.",
-    )
-    def record(
-        intent: str,
-        kind: str = "general.decision",
-        context: list[str] | None = None,
-        rules: list[Rule] | None = None,
-        exceptions: list[Exception_] | None = None,
-        rejected: list[str] | None = None,
-        approvals: list[Approval] | None = None,
-        actions: list[str] | None = None,
-        outcome: Literal["pending", "accepted", "reverted", "escalated", "failed"] | None = None,
-        agent: str = "mcp-client",
-    ) -> dict[str, Any]:
-        """Record a decision. `kind` is a dotted label like 'refund.approve'."""
-        return record_decision(
-            intent, kind, context, rules, exceptions, rejected, approvals, actions, outcome, agent
+    if "record" in tools:
+
+        @server.tool(
+            name="record",
+            description="Record a decision: rules checked, exceptions, rejected options, approvals.",
         )
+        def record(
+            intent: str,
+            kind: str = "general.decision",
+            context: list[str] | None = None,
+            rules: list[Rule] | None = None,
+            exceptions: list[Exception_] | None = None,
+            rejected: list[str] | None = None,
+            approvals: list[Approval] | None = None,
+            actions: list[str] | None = None,
+            outcome: Literal["pending", "accepted", "reverted", "escalated", "failed"]
+            | None = None,
+            agent: str = "mcp-client",
+            on_behalf_of: str | None = None,
+        ) -> dict[str, Any]:
+            """Record a decision. `kind` is a dotted label like 'refund.approve'. `on_behalf_of`:
+            the person you are working for, e.g. 'Meera (support lead)', when known."""
+            return record_decision(
+                intent,
+                kind,
+                context,
+                rules,
+                exceptions,
+                rejected,
+                approvals,
+                actions,
+                outcome,
+                agent,
+                on_behalf_of=on_behalf_of,
+                client_name=client_name,
+                local_user=local_user,
+            )
 
-    @server.tool(
-        name="recall",
-        description="Find how similar decisions were handled before (rules, exceptions, approvals, outcome).",
-    )
-    def recall(query: str, limit: int = 5, kind: str | None = None) -> dict[str, Any]:
-        """`query` is a description ('refund over the limit') or a decision id to find precedents for."""
-        return recall_decisions(query, limit, kind)
+    if "recall" in tools:
 
-    @server.tool(name="outcome", description="Record what happened after a past decision.")
-    def outcome(
-        decision_id: str,
-        status: Literal[
-            "accepted", "reverted", "overridden", "escalated", "failed", "complained", "other"
-        ],
-        note: str | None = None,
-    ) -> dict[str, Any]:
-        """Attach an outcome to a decision (by id or unique prefix)."""
-        return record_outcome(decision_id, status, note)
+        @server.tool(
+            name="recall",
+            description="Find how similar decisions were handled before (rules, exceptions, approvals, outcome).",
+        )
+        def recall(query: str, limit: int = 5, kind: str | None = None) -> dict[str, Any]:
+            """`query` is a description ('refund over the limit') or a decision id to find precedents for."""
+            return recall_decisions(query, limit, kind)
+
+    if "outcome" in tools:
+
+        @server.tool(name="outcome", description="Record what happened after a past decision.")
+        def outcome(
+            decision_id: str,
+            status: Literal[
+                "accepted", "reverted", "overridden", "escalated", "failed", "complained", "other"
+            ],
+            note: str | None = None,
+        ) -> dict[str, Any]:
+            """Attach an outcome to a decision (by id or unique prefix)."""
+            return record_outcome(decision_id, status, note)
 
     return server
 

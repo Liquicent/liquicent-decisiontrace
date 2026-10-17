@@ -48,3 +48,6 @@ Remove with `dt uninstall claude-desktop` / `dt uninstall cursor`.
   ]
 }
 ```
+
+
+For a team, or for Claude.ai and ChatGPT workspace connectors, run the same tools on your own server: [self-hosted MCP](self-hosted-mcp.md).

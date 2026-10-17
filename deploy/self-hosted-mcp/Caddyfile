@@ -1,0 +1,5 @@
+# HTTPS in front of DecisionTrace. No `log` directive: Caddy writes no access log, so the
+# secret connector URL (/t/<token>/mcp) is never recorded.
+{$DT_PUBLIC_HOST} {
+	reverse_proxy decisiontrace:8765
+}
