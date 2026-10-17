@@ -82,7 +82,7 @@ def test_outcome(tmp_path: Path) -> None:
 def test_verify_and_tamper(tmp_path: Path) -> None:
     home = seeded(tmp_path)
     code, out = dt(home, "verify")
-    assert code == 0 and "12 records, chain intact" in out
+    assert code == 0 and f"{len(EXAMPLES)} records, chain intact" in out
     conn = sqlite3.connect(home / "traces.db")
     conn.execute("DROP TRIGGER records_no_update")
     conn.execute("UPDATE records SET body = replace(body, '850', '85') WHERE seq = 1")
@@ -98,10 +98,10 @@ def test_export(tmp_path: Path) -> None:
     target = tmp_path / "out.jsonl"
     assert dt(home, "export", "-o", str(target))[0] == 0
     lines = target.read_text().splitlines()
-    assert len(lines) == 12
+    assert len(lines) == len(EXAMPLES)
     dt(tmp_path / "other", "init")
     _, out = dt(tmp_path / "other", "validate", str(target))
-    assert "12/12 records valid" in out
+    assert f"{len(EXAMPLES)}/{len(EXAMPLES)} records valid" in out
 
 
 def test_append_rejects_invalid_and_redacts(tmp_path: Path) -> None:

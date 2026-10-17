@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from decisiontrace.ids import new_ulid
@@ -25,6 +25,16 @@ DETECTOR_PREFIX = "decisiontrace:detect:"
 
 
 @dataclass(frozen=True)
+class UnitHint:
+    """What a delivery signal would record as a verified work unit (``--vwu``)."""
+
+    unit: str  # e.g. code.change, zendesk.ticket
+    verified_at: datetime  # when the delivery signal happened
+    window_ends_at: datetime | None = None  # None: verified_at + the run's --vwu-window-days
+    ref: str = ""  # evidence pointer
+
+
+@dataclass(frozen=True)
 class Signal:
     trace_id: str
     status: str
@@ -33,6 +43,7 @@ class Signal:
     note: str
     evidence: str = ""
     value_usd: float | None = None
+    unit: UnitHint | None = None  # set by delivery detectors (git, events), never by assumptions
 
 
 @dataclass
@@ -93,8 +104,41 @@ def _iso(t: datetime) -> str:
     return t.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def apply(store: Store, signals: list[Signal], now: datetime | None = None) -> int:
-    """Append one outcome record per planned signal. Returns how many were written."""
+def records_unit(s: Signal, vwu: bool) -> bool:
+    """Whether ``apply`` records this signal as a verified work unit."""
+    return vwu and s.status == "accepted" and s.unit is not None
+
+
+def _unit(s: Signal, detector: dict[str, str], window_days: float) -> dict[str, Any]:
+    hint = s.unit
+    assert hint is not None
+    ends = hint.window_ends_at or hint.verified_at + timedelta(days=window_days)
+    verification: dict[str, Any] = {
+        "method": "outcome_signal",
+        "at": _iso(hint.verified_at),
+        "verifier": detector,
+    }
+    if hint.ref:
+        verification["ref"] = hint.ref[:1024]
+    return {
+        "unit": hint.unit,
+        "verification": verification,
+        "reversal": {"window_ends_at": _iso(max(ends, hint.verified_at))},
+    }
+
+
+def apply(
+    store: Store,
+    signals: list[Signal],
+    now: datetime | None = None,
+    vwu: bool = False,
+    vwu_window_days: float = 7.0,
+) -> int:
+    """Append one outcome record per planned signal. Returns how many were written.
+
+    With ``vwu``, an accepted delivery signal (git, business events) also records a verified
+    work unit, reversible until its window ends. Assumptions (silence) and signals inside the
+    store never do: an assumption is not a verification."""
     now = now or datetime.now(UTC)
     records: list[dict[str, Any]] = []
     for s in signals:
@@ -103,6 +147,11 @@ def apply(store: Store, signals: list[Signal], now: datetime | None = None) -> i
         attrs: dict[str, Any] = {"decisiontrace.detector": s.source}
         if s.evidence:
             attrs["decisiontrace.evidence"] = s.evidence[:500]
+        detector = {
+            "type": "system",
+            "id": DETECTOR_PREFIX + s.source,
+            "name": "DecisionTrace outcome detection",
+        }
         rec: dict[str, Any] = {
             "record_type": "outcome",
             "schema_version": SCHEMA_VERSION,
@@ -111,16 +160,14 @@ def apply(store: Store, signals: list[Signal], now: datetime | None = None) -> i
             "trace_id": s.trace_id,
             "status": s.status,
             "note": s.note[:2000],
-            "recorded_by": {
-                "type": "system",
-                "id": DETECTOR_PREFIX + s.source,
-                "name": "DecisionTrace outcome detection",
-            },
+            "recorded_by": detector,
             "recorded_at": _iso(min(s.at, now)),
             "attributes": attrs,
         }
         if s.value_usd is not None:
             rec["value_usd"] = s.value_usd
+        if records_unit(s, vwu):
+            rec["vwu"] = _unit(s, detector, vwu_window_days)
         records.append(rec)
     if records:
         store.append_many(records)

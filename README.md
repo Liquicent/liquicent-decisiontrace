@@ -44,6 +44,7 @@ dt why <id | file | commit>   # the full account of one decision
 dt similar <id>               # past decisions like it, with a similarity breakdown
 dt ask "what did we revert last week?"
 dt outcomes detect --git .    # fill in outcomes from reverts, merges, overrides
+dt vwu                        # verified work units: delivered, accepted, reversible
 dt verify                     # recompute the hash chain
 ```
 

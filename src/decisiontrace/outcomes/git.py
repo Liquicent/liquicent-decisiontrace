@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from decisiontrace.model import DecisionTrace
-from decisiontrace.outcomes.base import Signal
+from decisiontrace.outcomes.base import Signal, UnitHint
 
 
 class GitError(RuntimeError):
@@ -155,14 +155,16 @@ def detect(
             and now - commit.at >= timedelta(days=settle_days)
             and _is_ancestor(root, commit.sha, main)
         ):
+            settled = commit.at + timedelta(days=settle_days)
             out.append(
                 Signal(
                     t.id,
                     "accepted",
                     "git",
-                    commit.at + timedelta(days=settle_days),
+                    settled,
                     f"Commit {commit.sha[:8]} ({how}) is on {main} with no revert after {settle_days:g} days",
                     f"git:{commit.sha}@{main}",
+                    unit=UnitHint("code.change", commit.at, settled, f"git:{commit.sha}@{main}"),
                 )
             )
     return out

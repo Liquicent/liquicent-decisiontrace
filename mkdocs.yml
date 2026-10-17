@@ -33,6 +33,7 @@ nav:
       - Self-hosted MCP (teams): adapters/self-hosted-mcp.md
   - Recall (why, similar, ask): recall.md
   - Outcome detection: outcomes.md
+  - Verified work units: vwu.md
   - CLI reference: cli.md
   - Schema reference: schema.md
   - Privacy & security: privacy.md

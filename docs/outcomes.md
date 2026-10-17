@@ -10,6 +10,7 @@ dt outcomes detect --git ~/src/app                   # + git reverts and merges
 dt outcomes detect --events zendesk.jsonl --preset zendesk
 dt outcomes detect --events stripe-events.jsonl --preset stripe --dry-run
 dt outcomes detect --assume-accepted-after 14        # opt-in: silence counts as accepted
+dt outcomes detect --git . --events zendesk.jsonl --preset zendesk --vwu   # + verified work units
 ```
 
 ## Sources
@@ -45,3 +46,20 @@ so `stripe:ch_9001` matches an order recorded as `shop:ch_9001`, and `88412` mat
   `decisiontrace:detect:<source>`, with the evidence in `attributes`. Their `recorded_at`
   is when the signal happened, so replays see them only from that moment.
 - Running twice records nothing new.
+
+## Verified work units (`--vwu`)
+
+With `--vwu`, an *accepted* outcome from a delivery signal also records a
+[verified work unit](vwu.md), verified by `outcome_signal`:
+
+| Source | Unit | Reversible until |
+|---|---|---|
+| `--git` | `code.change` | merge time + `--settle-days` (already passed, so the unit is final at once) |
+| `--events --preset stripe` | `stripe.payment` (`stripe.refund` for a refund) | event time + `--vwu-window-days` (7) |
+| `--events --preset zendesk` / `jira` / `github` | `zendesk.ticket` / `jira.issue` / `github.pull_request` | event time + `--vwu-window-days` |
+| `--events` (generic) | the event's `unit` if it is a dotted label, else `work.item` | event time + `--vwu-window-days` |
+
+Signals inside the store and `--assume-accepted-after` never make units: an assumption is
+not a verification. A later reverted, failed or overridden signal inside the window turns the
+unit to `reverted` (see `dt vwu`). Turn `--vwu` on from the first run: an outcome already
+detected without a unit is not recorded again.

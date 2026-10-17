@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The schema has its own 
 
 ## Unreleased
 
+- Verified work units (VWU): an accepted outcome record may carry `vwu` (unit, quantity, executor, quality threshold, measurement window, verification method and evidence, reversal window and cost bound). `Actor` gains `org` (the accountable organisation, e.g. a vendor) and `version` (an agent's model/prompt/tool bundle). `dt outcome --accepted --vwu UNIT`, `dt vwu` (state: provisional, final or reverted; share verified without a person), `dt outcomes detect --vwu`. Schema stays 0.1.0: every field is optional and additive.
 - `dt mcp --http`: self-hosted MCP server for teams (Claude.ai / ChatGPT connectors, Claude Code, agents): token by header or secret URL, tool allow-list, no access log, `/healthz`; Docker + Caddy deployment in `deploy/self-hosted-mcp/`.
 - `dt outcomes detect`: outcomes from the store (overrides, reversal links, failed actions, human redos), git (reverts, merges) and business events (Stripe, Zendesk, Jira, GitHub, PagerDuty, generic JSONL); opt-in `--assume-accepted-after`. Never overrides a person's outcome.
 

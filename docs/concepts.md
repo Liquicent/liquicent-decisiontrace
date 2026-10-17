@@ -22,7 +22,8 @@ what happened — never declared.
 ## Three record types
 
 - **decision** — the record above
-- **outcome** — what happened later (`accepted`, `reverted`, `complained`, …), linked by id
+- **outcome** — what happened later (`accepted`, `reverted`, `complained`, …), linked by id;
+  an accepted one may carry a [verified work unit](vwu.md)
 - **correction** — a fix to a recorded field, linked by id; views apply it, the stored
   decision never changes
 

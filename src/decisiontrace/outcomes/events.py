@@ -6,10 +6,12 @@ Input is JSON Lines: one event per line, either the native webhook payload of a 
 
     {"ref": "zendesk:88412", "event": "reopened", "at": "2026-10-14T09:00:00Z", "value_usd": -40}
 
-``trace_id`` may replace ``ref`` to point at a decision directly. A ref matches a decision
-when it equals one of the decision's refs (context inputs, action targets, state refs), or
-when its id part (after the last ``:``/``#``/``/``, at least 4 characters) equals theirs.
-Only decisions made before the event are matched.
+``trace_id`` may replace ``ref`` to point at a decision directly, and an accepted event may
+name the work ``unit`` it delivered (for ``--vwu``; otherwise the preset's unit is used).
+
+A ref matches a decision when it equals one of the decision's refs (context inputs, action
+targets, state refs), or when its id part (after the last ``:``/``#``/``/``, at least 4
+characters) equals theirs. Only decisions made before the event are matched.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from decisiontrace.model import DecisionTrace
-from decisiontrace.outcomes.base import Signal
+from decisiontrace.outcomes.base import Signal, UnitHint
 
 # Generic event words → outcome status. Lower-case; "." and "-" are treated as "_".
 STATUS_WORDS: dict[str, str] = {}
@@ -48,6 +50,19 @@ class Event:
     label: str
     value_usd: float | None = None
     trace_id: str | None = None
+    unit: str | None = None  # the work unit an accepted event delivers; else the preset's
+
+
+# The unit of work an accepted event delivers, per preset (for ``--vwu``).
+UNITS: dict[str, str] = {
+    "generic": "work.item",
+    "stripe": "stripe.payment",
+    "zendesk": "zendesk.ticket",
+    "jira": "jira.issue",
+    "github": "github.pull_request",
+    "pagerduty": "pagerduty.incident",
+}
+_LABEL = re.compile(r"^[a-z0-9_]+(\.[a-z0-9_]+)*$")
 
 
 def _norm(word: str) -> str:
@@ -89,6 +104,7 @@ def _generic(e: dict[str, Any]) -> Event | None:
     if not status or at is None or not (refs or e.get("trace_id")):
         return None
     value = e.get("value_usd")
+    unit = e.get("unit")
     return Event(
         tuple(str(r) for r in refs),
         status,
@@ -96,6 +112,7 @@ def _generic(e: dict[str, Any]) -> Event | None:
         str(word or status),
         float(value) if isinstance(value, int | float) else None,
         e.get("trace_id"),
+        unit if isinstance(unit, str) and _LABEL.fullmatch(unit) else None,
     )
 
 
@@ -130,7 +147,8 @@ def _stripe(e: dict[str, Any]) -> Event | None:
         if status in ("complained", "failed") and isinstance(amount, int | float)
         else None
     )
-    return Event(refs, status, at, kind, value)
+    unit = "stripe.refund" if kind == "charge.refunded" else None
+    return Event(refs, status, at, kind, value, unit=unit)
 
 
 def _zendesk(e: dict[str, Any]) -> Event | None:
@@ -289,6 +307,13 @@ def detect(
         for r in ev.refs:
             for t in exact.get(r.lower(), []) + by_id.get(_id_part(r), []):
                 hits[t.id] = t
+        unit = (
+            UnitHint(
+                ev.unit or UNITS.get(preset, "work.item"), ev.at, None, ", ".join(ev.refs)[:1024]
+            )
+            if ev.status == "accepted"
+            else None
+        )
         for t in hits.values():
             if t.actor_time.started_at > ev.at:
                 continue
@@ -301,6 +326,7 @@ def detect(
                     f"{preset}: {ev.label}",
                     ", ".join(ev.refs)[:500],
                     ev.value_usd,
+                    unit,
                 )
             )
     return out

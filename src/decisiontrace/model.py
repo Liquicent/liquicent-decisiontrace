@@ -3,7 +3,8 @@
 A store holds three kinds of append-only record:
 
 * :class:`DecisionTrace` -- a decision ``DT = <C, P, E, X, H, T, O>``
-* :class:`OutcomeRecord` -- an outcome learned later, linked to a decision
+* :class:`OutcomeRecord` -- an outcome learned later, linked to a decision; an accepted one
+  may carry a :class:`VerifiedWorkUnit`
 * :class:`CorrectionRecord` -- a correction to a decision, linked to it
 
 Records are immutable. Serialise with :func:`to_json_dict`, which omits unset optional
@@ -23,6 +24,7 @@ from pydantic import (
     StringConstraints,
     TypeAdapter,
     field_validator,
+    model_validator,
 )
 
 SCHEMA_VERSION: Final = "0.1.0"
@@ -59,6 +61,8 @@ OutcomeStatus = Literal[
 LinkType = Literal[
     "context", "precedent", "reversal", "exec", "delegation", "hand_off", "supersedes"
 ]
+VerificationMethod = Literal["human", "automated", "outcome_signal", "precedent", "sample"]
+QualityDirection = Literal["higher", "lower"]
 
 
 class _Record(BaseModel):
@@ -84,6 +88,8 @@ class Actor(_Record):
     id: Name
     name: Annotated[str, StringConstraints(max_length=256)] | None = None
     role: Annotated[str, StringConstraints(max_length=128)] | None = None
+    org: Name | None = None
+    version: Annotated[str, StringConstraints(max_length=64)] | None = None
 
 
 class Model(_Record):
@@ -239,6 +245,69 @@ class DecisionTrace(_Record):
         return None if value is None else _check_keys(value, _ATTRIBUTE_KEY, "attribute")
 
 
+class VwuQuality(_Record):
+    metric: Name
+    threshold: float | None = None
+    value: float | None = None
+    baseline: float | None = None
+    direction: QualityDirection | None = None  # absent means higher is better
+
+    @model_validator(mode="after")
+    def _meets_threshold(self) -> VwuQuality:
+        if self.threshold is None or self.value is None:
+            return self
+        lower = self.direction == "lower"
+        if (self.value > self.threshold) if lower else (self.value < self.threshold):
+            better = "lower" if lower else "higher"
+            raise ValueError(
+                f"quality value {self.value:g} misses the threshold {self.threshold:g}"
+                f" ({better} is better): not a verified work unit"
+            )
+        return self
+
+
+class VwuWindow(_Record):
+    started_at: AwareDatetime
+    ended_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def _ordered(self) -> VwuWindow:
+        if self.ended_at < self.started_at:
+            raise ValueError("measured.ended_at is before measured.started_at")
+        return self
+
+
+class VwuVerification(_Record):
+    method: VerificationMethod
+    at: AwareDatetime
+    verifier: Actor | None = None
+    ref: Ref | None = None
+
+
+class VwuReversal(_Record):
+    window_ends_at: AwareDatetime
+    max_cost_usd: Annotated[float, Field(ge=0)] | None = None
+
+
+class VerifiedWorkUnit(_Record):
+    """One completed, accepted and reversible unit of work that met its quality and
+    governance thresholds (the WorkRank paper's VWU). Recorded, never scored here."""
+
+    unit: Label
+    quantity: Annotated[float, Field(gt=0)] | None = None  # absent means 1
+    executor: Actor | None = None  # absent means the decision's actor_time.actor
+    quality: VwuQuality | None = None
+    measured: VwuWindow | None = None
+    verification: VwuVerification
+    reversal: VwuReversal
+
+    @model_validator(mode="after")
+    def _window_after_verification(self) -> VerifiedWorkUnit:
+        if self.reversal.window_ends_at < self.verification.at:
+            raise ValueError("reversal.window_ends_at is before verification.at")
+        return self
+
+
 class OutcomeRecord(_Record):
     record_type: Literal["outcome"] = "outcome"
     schema_version: Literal["0.1.0"] = SCHEMA_VERSION
@@ -250,6 +319,7 @@ class OutcomeRecord(_Record):
     recorded_at: AwareDatetime
     note: Text | None = None
     value_usd: float | None = None
+    vwu: VerifiedWorkUnit | None = None
     attributes: dict[str, AttributeValue] | None = None
     integrity: Integrity | None = None
 
@@ -259,6 +329,12 @@ class OutcomeRecord(_Record):
         cls, value: dict[str, AttributeValue] | None
     ) -> dict[str, AttributeValue] | None:
         return None if value is None else _check_keys(value, _ATTRIBUTE_KEY, "attribute")
+
+    @model_validator(mode="after")
+    def _vwu_only_when_accepted(self) -> OutcomeRecord:
+        if self.vwu is not None and self.status != "accepted":
+            raise ValueError(f"a verified work unit needs status 'accepted', not {self.status!r}")
+        return self
 
 
 class CorrectionRecord(_Record):

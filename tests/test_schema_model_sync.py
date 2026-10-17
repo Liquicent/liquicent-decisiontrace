@@ -33,6 +33,11 @@ PAIRS: dict[str, type[BaseModel]] = {
     "DecisionTrace": m.DecisionTrace,
     "OutcomeRecord": m.OutcomeRecord,
     "CorrectionRecord": m.CorrectionRecord,
+    "VerifiedWorkUnit": m.VerifiedWorkUnit,
+    "VwuQuality": m.VwuQuality,
+    "VwuWindow": m.VwuWindow,
+    "VwuVerification": m.VwuVerification,
+    "VwuReversal": m.VwuReversal,
 }
 
 

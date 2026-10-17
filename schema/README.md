@@ -11,7 +11,7 @@ A store is an append-only sequence of three record types (`record_type`):
 | `record_type` | Meaning |
 |---|---|
 | `decision` | One decision, `DT = ⟨C, P, E, X, H, T, O⟩` |
-| `outcome` | An outcome learned later, linked by `trace_id` (never an edit) |
+| `outcome` | An outcome learned later, linked by `trace_id` (never an edit); an accepted one may carry a verified work unit (`vwu`) |
 | `correction` | A correction to a decision, linked by `trace_id`; `changes` maps field paths to corrected values |
 
 ## Decision fields
@@ -42,6 +42,26 @@ delegation, hand_off, supersedes), `attributes` (namespaced extension keys), `in
 - **Typed human path,** so approvals per 100 decisions can be counted without parsing text.
 - **Timestamps carry an offset;** IDs are ULIDs (sortable by time).
 
+## Verified work units
+
+An accepted outcome record may carry `vwu`: one completed, accepted and reversible unit of
+work that met its quality threshold (the WorkRank paper's VWU).
+
+| Field | Contents |
+|---|---|
+| `unit` | Dotted label for what one unit is, e.g. `code.change`, `support.ticket` |
+| `quantity` | Units delivered (absent means 1) |
+| `executor` | Who did the work (absent means the decision's actor) |
+| `quality` | `metric` (definition id), `threshold`, `value`, `baseline`, `direction` (higher/lower) |
+| `measured` | Measurement window: `started_at`, `ended_at` |
+| `verification` | `method` (human, automated, outcome_signal, precedent, sample), `at`, `verifier`, `ref` |
+| `reversal` | `window_ends_at`, `max_cost_usd` |
+
+Actors carry `org` (the accountable organisation, e.g. a vendor) and `version` (an agent's
+model, prompt and tool bundle). The schema rejects a unit on any status but `accepted`. JSON
+Schema cannot compare two values, so the reference implementation and `dt validate` also
+reject a value that misses its threshold and windows that end before they start.
+
 ## OpenTelemetry GenAI mapping
 
 Pinned to `opentelemetry-semantic-conventions` 0.66b1. Fields carry an `x-otel` annotation.
@@ -62,5 +82,5 @@ Pinned to `opentelemetry-semantic-conventions` 0.66b1. Fields carry an `x-otel` 
 ## Examples
 
 The `schema/examples/` folder holds ten decisions (refunds, PR merge, Claude Code edit, email draft, denied
-tool call, escalated purchase order, memory write, delegation parent/child) plus one outcome
-and one correction. Validate any file with `dt validate`.
+tool call, escalated purchase order, memory write, delegation parent/child) plus two outcomes
+(one a reverted edit, one a verified work unit) and one correction. Validate any file with `dt validate`.

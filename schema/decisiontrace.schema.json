@@ -66,7 +66,15 @@
         "type": { "enum": ["human", "agent", "system"] },
         "id": { "type": "string", "minLength": 1, "maxLength": 256, "x-otel": "gen_ai.agent.id (agents)" },
         "name": { "type": "string", "maxLength": 256, "x-otel": "gen_ai.agent.name (agents)" },
-        "role": { "type": "string", "maxLength": 128 }
+        "role": { "type": "string", "maxLength": 128 },
+        "org": {
+          "description": "The accountable organisation the actor works for, e.g. a vendor: the governance envelope that answers for its work.",
+          "type": "string", "minLength": 1, "maxLength": 256
+        },
+        "version": {
+          "description": "For agents: the model, prompt and tool bundle. Trust earned by one version need not carry to the next.",
+          "type": "string", "maxLength": 64
+        }
       }
     },
     "Model": {
@@ -285,8 +293,71 @@
         "value_usd": { "description": "Money gained (+) or lost (-) because of this decision, if known.", "type": "number" },
         "recorded_by": { "$ref": "#/$defs/Actor" },
         "recorded_at": { "$ref": "#/$defs/Timestamp" },
+        "vwu": { "$ref": "#/$defs/VerifiedWorkUnit" },
         "attributes": { "$ref": "#/$defs/Attributes" },
         "integrity": { "$ref": "#/$defs/Integrity" }
+      },
+      "if": { "required": ["vwu"] },
+      "then": { "properties": { "status": { "const": "accepted" } } }
+    },
+    "VerifiedWorkUnit": {
+      "description": "A Verified Work Unit (WorkRank): one completed, accepted and reversible unit of work that met predefined quality and governance thresholds. Carried only by an 'accepted' outcome record. Whoever executed it (a person, an agent, or a vendor's person or agent) earns from it; scoring that trust is out of scope here. Rules JSON Schema cannot compare (value against threshold, window ends after verification, measured ended_at after started_at) are enforced by the reference implementation and by 'dt validate'.",
+      "type": "object",
+      "required": ["unit", "verification", "reversal"],
+      "additionalProperties": false,
+      "properties": {
+        "unit": { "description": "What one unit is, e.g. 'code.change', 'support.ticket', 'sales.close'.", "$ref": "#/$defs/Label" },
+        "quantity": { "description": "Units delivered. Absent means 1.", "type": "number", "exclusiveMinimum": 0 },
+        "executor": { "description": "Who or what did the work. Absent means the decision's actor_time.actor.", "$ref": "#/$defs/Actor" },
+        "quality": { "$ref": "#/$defs/VwuQuality" },
+        "measured": { "$ref": "#/$defs/VwuWindow" },
+        "verification": { "$ref": "#/$defs/VwuVerification" },
+        "reversal": { "$ref": "#/$defs/VwuReversal" }
+      }
+    },
+    "VwuQuality": {
+      "description": "The predefined quality threshold the unit had to meet, and what it achieved.",
+      "type": "object",
+      "required": ["metric"],
+      "additionalProperties": false,
+      "properties": {
+        "metric": { "description": "Metric definition id, e.g. 'aeo.citation_share/v1'.", "type": "string", "minLength": 1, "maxLength": 256 },
+        "threshold": { "type": "number" },
+        "value": { "description": "Must meet the threshold in the given direction.", "type": "number" },
+        "baseline": { "type": "number" },
+        "direction": { "description": "Absent means higher is better (value >= threshold).", "enum": ["higher", "lower"] }
+      }
+    },
+    "VwuWindow": {
+      "description": "The measurement window (ended_at is not before started_at).",
+      "type": "object",
+      "required": ["started_at", "ended_at"],
+      "additionalProperties": false,
+      "properties": {
+        "started_at": { "$ref": "#/$defs/Timestamp" },
+        "ended_at": { "$ref": "#/$defs/Timestamp" }
+      }
+    },
+    "VwuVerification": {
+      "description": "How and when the unit was verified. 'outcome_signal' = a business-system or git signal; 'precedent' = accepted on a strong precedent; 'sample' = covered by a sampled review.",
+      "type": "object",
+      "required": ["method", "at"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "enum": ["human", "automated", "outcome_signal", "precedent", "sample"] },
+        "at": { "$ref": "#/$defs/Timestamp" },
+        "verifier": { "$ref": "#/$defs/Actor" },
+        "ref": { "description": "Evidence pointer, e.g. a CI run URL or check id.", "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "VwuReversal": {
+      "description": "Until when the unit can still be reversed at bounded cost (not before the verification time), and that bound.",
+      "type": "object",
+      "required": ["window_ends_at"],
+      "additionalProperties": false,
+      "properties": {
+        "window_ends_at": { "$ref": "#/$defs/Timestamp" },
+        "max_cost_usd": { "type": "number", "minimum": 0 }
       }
     },
     "CorrectionRecord": {

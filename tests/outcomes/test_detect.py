@@ -352,3 +352,121 @@ def test_cli(config: Any, tmp_path: Path) -> None:
     assert r.exit_code == 1
     with Store.open(config) as s:
         assert s.verify().ok
+
+
+# -- verified work units (--vwu) ------------------------------------------------------------
+
+
+def _units(store: Any) -> dict[str, Any]:
+    from decisiontrace.vwu import units
+
+    return {u.trace_id: u for u in units(store)}
+
+
+def _git_repo_with_revert(tmp_path: Path) -> tuple[Path, str]:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    (repo / "a.py").write_text("a = 1\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "agent change A")
+    sha_a = _git(repo, "rev-parse", "HEAD")
+    (repo / "b.py").write_text("b = 1\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "human commits B")
+    _git(repo, "revert", "--no-edit", sha_a)
+    return repo, sha_a
+
+
+def test_git_merges_become_units_reverts_do_not(store: Any, tmp_path: Path) -> None:
+    repo, sha_a = _git_repo_with_revert(tmp_path)
+    start = NOW - timedelta(hours=1)
+    made_commit = decision(
+        start, kind="code.edit", state_after={"type": "git.commit", "ref": sha_a}
+    )
+    edited_b = decision(
+        start,
+        kind="code.edit",
+        actions=[{"type": "file_write", "name": "Edit", "target": str(repo / "b.py")}],
+    )
+    store.append_many([made_commit, edited_b])
+    sig = git.detect(decisions(store), repo, settle_days=0)
+    assert apply(store, plan(store, sig), vwu=True) == 2
+    found = _units(store)
+    assert set(found) == {edited_b["id"]}
+    unit = found[edited_b["id"]]
+    assert unit.unit == "code.change" and unit.method == "outcome_signal"
+    assert unit.state == "final"  # git's settle window has already passed
+    rec = next(r for r in store.related(edited_b["id"]) if isinstance(r, OutcomeRecord) and r.vwu)
+    assert rec.vwu is not None and rec.vwu.verification.ref
+    assert rec.vwu.verification.ref.startswith("git:")
+    assert (
+        apply(store, plan(store, git.detect(decisions(store), repo, settle_days=0)), vwu=True) == 0
+    )
+    assert store.verify().ok
+
+
+def test_event_units_stay_provisional_until_their_window_ends(store: Any) -> None:
+    d = decision(
+        NOW - timedelta(days=3), context={"inputs": [{"type": "pr", "ref": "github:acme/app#43"}]}
+    )
+    store.append(d)
+    merged = events.Event(("github:acme/app#43",), "accepted", NOW - timedelta(days=2), "PR merged")
+    sig = events.detect(decisions(store), [merged], "github")
+    assert apply(store, plan(store, sig), vwu=True, vwu_window_days=5) == 1
+    unit = _units(store)[d["id"]]
+    assert unit.unit == "github.pull_request" and unit.state == "provisional"
+    assert unit.window_ends_at == merged.at + timedelta(days=5)
+    rollback = events.Event(
+        ("github:acme/app#43",), "reverted", NOW - timedelta(days=1), "rolled_back"
+    )
+    assert run(store, events.detect(decisions(store), [rollback])) == 1
+    assert _units(store)[d["id"]].state == "reverted"
+    assert run(store, events.detect(decisions(store), [merged, rollback], "github")) == 0
+
+
+def test_generic_events_can_name_their_unit(tmp_path: Path) -> None:
+    f = tmp_path / "ev.jsonl"
+    lines = [
+        {"ref": "shop:7731", "event": "delivered", "at": iso(NOW), "unit": "order.delivery"},
+        {"ref": "shop:7732", "event": "delivered", "at": iso(NOW), "unit": "Not A Label"},
+    ]
+    f.write_text("\n".join(json.dumps(x) for x in lines) + "\n")
+    evs, skipped = events.read([f])
+    assert skipped == 0
+    assert [e.unit for e in evs] == ["order.delivery", None]
+
+
+def test_assumptions_are_never_units(store: Any) -> None:
+    d = decision(NOW - timedelta(days=20), actions=[{"type": "api_call", "name": "x"}])
+    store.append(d)
+    assert apply(store, plan(store, silence.detect(decisions(store), 14)), vwu=True) == 1
+    assert statuses(store)[d["id"]] == "accepted"
+    assert _units(store) == {}
+
+
+def test_cli_vwu(config: Any, tmp_path: Path) -> None:
+    from decisiontrace.store import Store
+
+    d = decision(
+        NOW - timedelta(days=3), context={"inputs": [{"type": "ticket", "ref": "zendesk:88412"}]}
+    )
+    with Store.open(config) as s:
+        s.append(d)
+    f = tmp_path / "ev.jsonl"
+    f.write_text(
+        json.dumps({"ref": "zendesk:88412", "event": "solved", "at": iso(NOW - timedelta(days=1))})
+        + "\n"
+    )
+    home = ["--home", str(config.home)]
+    base = [*home, "outcomes", "detect", "--events", str(f), "--preset", "generic"]
+    r = CliRunner().invoke(app, [*base, "--vwu", "--dry-run"])
+    assert r.exit_code == 0 and "[vwu work.item]" in r.output and "dry run" in r.output
+    r = CliRunner().invoke(app, [*base, "--vwu", "--vwu-window-days", "2"])
+    assert r.exit_code == 0 and "Recorded 1 outcome(s), 1 of them verified work units" in r.output
+    r = CliRunner().invoke(app, [*base, "--vwu"])
+    assert "No new outcomes" in r.output
+    r = CliRunner().invoke(app, [*home, "vwu", "--json"])
+    (unit,) = json.loads(r.output)
+    assert unit["unit"] == "work.item" and unit["method"] == "outcome_signal"
+    assert unit["state"] == "provisional"

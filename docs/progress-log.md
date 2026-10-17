@@ -339,3 +339,17 @@ Liquicent (phase 3) start in private repos and read this store.
   guide `docs/adapters/self-hosted-mcp.md`.
 - Open: OAuth (per-user identity) for connectors — needs an identity provider; next step if
   clients ask for per-employee attribution.
+
+## 2026-10-17 — Verified work units
+
+- Schema (still 0.1.0, additive): `OutcomeRecord.vwu` (WorkRank's verified work unit: unit,
+  quantity, executor, quality threshold, measurement window, verification, reversal window);
+  `Actor.org` and `Actor.version`, so a unit names who earns from it: a person, an agent, or a
+  vendor's person or agent. Value-vs-threshold and window-order rules live in the model and
+  `dt validate` (JSON Schema cannot compare two values).
+- `decisiontrace.vwu` (derived state: provisional, final, reverted), `dt vwu`,
+  `dt outcome --accepted --vwu`, `dt outcomes detect --vwu` (git and event presets only;
+  assumptions never make units). Docs: docs/vwu.md.
+- Next: after merge, bump the DecisionTrace pins in Valence and Compounding; Valence can
+  then report units by capability and the share verified without a person.
+

@@ -146,6 +146,13 @@ def render_trace(
         if isinstance(r, OutcomeRecord):
             note = f" — {r.note}" if r.note else ""
             lines.append(f"  {r.recorded_at.date()} {r.status} by {_actor(r.recorded_by)}{note}")
+            if r.vwu:
+                v = r.vwu
+                qty = v.quantity if v.quantity is not None else 1
+                lines.append(
+                    f"    verified work unit: {v.unit} x{qty:g}, {v.verification.method},"
+                    f" reversible until {v.reversal.window_ends_at.date()}"
+                )
     if corrections:
         lines += ["", "Corrections applied"]
         for c in corrections:

@@ -11,12 +11,12 @@ from decisiontrace.model import DecisionTrace, OutcomeRecord, to_json_dict
 from decisiontrace.store import AmbiguousId, DuplicateRecord, Store, UnknownRecord
 from decisiontrace.store.chain import GENESIS
 from decisiontrace.synthetic import synthetic_decisions
-from tests.conftest import example_records
+from tests.conftest import EXAMPLES, example_records
 
 
 def test_append_and_read_back(store: Store) -> None:
     results = store.append_many(example_records())
-    assert len(results) == 12
+    assert len(results) == len(EXAMPLES)
     first = store.get(results[0].record.id)
     assert first.integrity is not None
     assert first.integrity.prev_hash == GENESIS
@@ -31,7 +31,7 @@ def test_chain_links_each_record_to_the_previous(store: Store) -> None:
     for prev, cur in itertools.pairwise(recs):
         assert prev.integrity and cur.integrity
         assert cur.integrity.prev_hash == prev.integrity.hash
-    assert store.head() == (12, recs[-1].integrity.hash)  # type: ignore[union-attr]
+    assert store.head() == (len(EXAMPLES), recs[-1].integrity.hash)  # type: ignore[union-attr]
 
 
 def test_appends_across_sessions_continue_the_chain(config: Any) -> None:
@@ -139,7 +139,7 @@ def test_export_round_trip(store: Store, tmp_path: Any) -> None:
 
     store.append_many(example_records())
     buf = io.StringIO()
-    assert store.export_jsonl(buf) == 12
+    assert store.export_jsonl(buf) == len(EXAMPLES)
     lines = [json.loads(line) for line in buf.getvalue().splitlines()]
     assert all("integrity" in line for line in lines)
     assert [line["id"] for line in lines] == [r["id"] for r in example_records()]

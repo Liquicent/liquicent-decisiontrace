@@ -1,0 +1,43 @@
+{
+  "record_type": "outcome",
+  "schema_version": "0.1.0",
+  "id": "01M575K910V6VSZ9Z2SC583ZW2",
+  "namespace": "local",
+  "trace_id": "01M4ZDRZG0H1T0NCG78SRRADYC",
+  "status": "accepted",
+  "note": "Merged with required checks green; no revert within the 3-day window",
+  "recorded_by": {
+    "type": "system",
+    "id": "decisiontrace:detect:git",
+    "name": "DecisionTrace outcome detection"
+  },
+  "recorded_at": "2026-10-18T09:31:00Z",
+  "vwu": {
+    "unit": "code.change",
+    "executor": {
+      "type": "agent",
+      "id": "agent:fixer",
+      "name": "Fixer",
+      "org": "acme-dev-agency",
+      "version": "fixer-2026.10"
+    },
+    "quality": {
+      "metric": "ci.required_checks/v1",
+      "threshold": 1,
+      "value": 1
+    },
+    "verification": {
+      "method": "outcome_signal",
+      "at": "2026-10-15T09:31:00Z",
+      "verifier": {
+        "type": "system",
+        "id": "decisiontrace:detect:git"
+      },
+      "ref": "git:9f3d27e@origin/main"
+    },
+    "reversal": {
+      "window_ends_at": "2026-10-18T09:31:00Z",
+      "max_cost_usd": 150
+    }
+  }
+}

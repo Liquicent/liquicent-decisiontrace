@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
 
@@ -63,6 +63,17 @@ def _open_store(drain_first: bool = False) -> Store:
 def _fail(message: str) -> NoReturn:
     typer.echo(f"error: {message}", err=True)
     raise typer.Exit(code=1)
+
+
+VERIFICATION_METHODS = ("human", "automated", "outcome_signal", "precedent", "sample")
+
+
+def _iso(t: datetime) -> str:
+    return t.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _messages(exc: ValidationError) -> list[str]:
+    return [str(e["msg"]).removeprefix("Value error, ") for e in exc.errors()]
 
 
 @app.command()
@@ -186,8 +197,52 @@ def outcome(
     note: Annotated[str | None, typer.Option("--note", help="What happened")] = None,
     value_usd: Annotated[float | None, typer.Option(help="Money gained (+) or lost (-)")] = None,
     by: Annotated[str, typer.Option(help="Who is recording this")] = "user:local",
+    vwu: Annotated[
+        str | None,
+        typer.Option(
+            "--vwu",
+            help="Also record a verified work unit of this kind (e.g. code.change); needs --accepted",
+        ),
+    ] = None,
+    verified_by: Annotated[
+        str | None,
+        typer.Option(help="How the unit was verified: " + ", ".join(VERIFICATION_METHODS)),
+    ] = None,
+    reversal_days: Annotated[
+        float | None, typer.Option(help="Days the unit can still be reversed [default: 7]", min=0)
+    ] = None,
+    reversal_cost: Annotated[
+        float | None, typer.Option(help="Most it would cost to reverse the unit, in USD", min=0)
+    ] = None,
+    quantity: Annotated[
+        float | None, typer.Option(help="Units delivered [default: 1]", min=0)
+    ] = None,
+    quality_metric: Annotated[
+        str | None, typer.Option(help="Metric definition the unit was measured on")
+    ] = None,
+    quality_threshold: Annotated[
+        float | None, typer.Option(help="Threshold the unit had to meet")
+    ] = None,
+    quality_value: Annotated[float | None, typer.Option(help="What the unit achieved")] = None,
+    quality_direction: Annotated[
+        str | None, typer.Option(help="higher (default) or lower is better")
+    ] = None,
 ) -> None:
     """Record what happened after a decision (appended; the decision is never edited)."""
+    unit_options = (
+        verified_by,
+        reversal_days,
+        reversal_cost,
+        quantity,
+        quality_metric,
+        quality_threshold,
+        quality_value,
+        quality_direction,
+    )
+    if vwu is None and any(o is not None for o in unit_options):
+        _fail("--verified-by, --reversal-*, --quantity and --quality-* describe a unit: add --vwu")
+    if vwu is not None and not accepted:
+        _fail("--vwu needs --accepted: a unit counts only once its work is accepted")
     flags = {
         "accepted": accepted,
         "reverted": reverted,
@@ -209,6 +264,7 @@ def outcome(
             _fail(str(exc))
         if not isinstance(trace, DecisionTrace):
             _fail(f"{record_id} is not a decision")
+        now = datetime.now(UTC).replace(microsecond=0)
         record: dict[str, Any] = {
             "record_type": "outcome",
             "schema_version": SCHEMA_VERSION,
@@ -217,14 +273,119 @@ def outcome(
             "trace_id": trace.id,
             "status": status,
             "recorded_by": {"type": "human", "id": by},
-            "recorded_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "recorded_at": _iso(now),
         }
         if note:
             record["note"] = note
         if value_usd is not None:
             record["value_usd"] = value_usd
-        store.append(record)
+        if vwu is not None:
+            record["vwu"] = _unit_block(
+                vwu,
+                now,
+                by,
+                method=verified_by or "human",
+                reversal_days=7.0 if reversal_days is None else reversal_days,
+                reversal_cost=reversal_cost,
+                quantity=quantity,
+                quality=(quality_metric, quality_threshold, quality_value, quality_direction),
+            )
+        try:
+            store.append(record)
+        except ValidationError as exc:
+            _fail("; ".join(_messages(exc)))
     typer.echo(f"Recorded outcome '{status}' for {short(trace.id)}: {trace.intent}")
+    if vwu is not None:
+        until = record["vwu"]["reversal"]["window_ends_at"][:10]
+        typer.echo(
+            f"Verified work unit: {vwu} x{quantity if quantity is not None else 1:g},"
+            f" verified by {verified_by or 'human'}; reversible until {until}"
+        )
+
+
+def _unit_block(
+    unit: str,
+    now: datetime,
+    by: str,
+    *,
+    method: str,
+    reversal_days: float,
+    reversal_cost: float | None,
+    quantity: float | None,
+    quality: tuple[str | None, float | None, float | None, str | None],
+) -> dict[str, Any]:
+    """The ``vwu`` block of an outcome record, from ``dt outcome`` options."""
+    if method not in VERIFICATION_METHODS:
+        _fail(f"--verified-by must be one of: {', '.join(VERIFICATION_METHODS)}")
+    metric, threshold, value, direction = quality
+    if metric is None and (threshold is not None or value is not None or direction is not None):
+        _fail("--quality-threshold, --quality-value and --quality-direction need --quality-metric")
+    if direction not in (None, "higher", "lower"):
+        _fail("--quality-direction must be higher or lower")
+    verification: dict[str, Any] = {"method": method, "at": _iso(now)}
+    if method == "human":
+        verification["verifier"] = {"type": "human", "id": by}
+    block: dict[str, Any] = {
+        "unit": unit,
+        "verification": verification,
+        "reversal": {"window_ends_at": _iso(now + timedelta(days=reversal_days))},
+    }
+    if reversal_cost is not None:
+        block["reversal"]["max_cost_usd"] = reversal_cost
+    if quantity is not None:
+        block["quantity"] = quantity
+    if metric is not None:
+        q: dict[str, Any] = {"metric": metric}
+        for key, val in (("threshold", threshold), ("value", value), ("direction", direction)):
+            if val is not None:
+                q[key] = val
+        block["quality"] = q
+    return block
+
+
+@app.command(name="vwu")
+def vwu_list(
+    since: Annotated[
+        str | None, typer.Option(help="Only units recorded on or after this date (YYYY-MM-DD)")
+    ] = None,
+    state_filter: Annotated[
+        str | None, typer.Option("--state", help="provisional, final or reverted")
+    ] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="One JSON object per unit")] = False,
+) -> None:
+    """List verified work units: work delivered, accepted, and still reversible or final."""
+    from decisiontrace import vwu as vwu_mod
+
+    if state_filter is not None and state_filter not in vwu_mod.STATES:
+        _fail(f"--state must be one of: {', '.join(vwu_mod.STATES)}")
+    with _open_store() as store:
+        found = [
+            u
+            for u in vwu_mod.units(store, since=since)
+            if state_filter is None or u.state == state_filter
+        ]
+    if as_json:
+        typer.echo(json.dumps([u.to_json() for u in found], indent=2))
+        return
+    if not found:
+        typer.echo("No verified work units yet. Record one with:")
+        typer.echo("  dt outcome <id> --accepted --vwu <unit>   or   dt outcomes detect --vwu")
+        return
+    for u in found:
+        who = (u.executor.name or u.executor.id) if u.executor else "-"
+        if u.executor and u.executor.org:
+            who += f" ({u.executor.org})"
+        value = f"${u.value_usd:,.2f}" if u.value_usd is not None else ""
+        typer.echo(
+            f"{short(u.trace_id)}  {u.unit:<22} x{u.quantity:<5g} {who[:28]:<28}"
+            f" {u.method:<14} {u.state:<11} {value}"
+        )
+    s = vwu_mod.summary(found)
+    typer.echo(
+        f"\n{s['units']:g} unit(s): {s['final']:g} final, {s['provisional']:g} provisional,"
+        f" {s['reverted']:g} reverted. Verified without a person:"
+        f" {s['verified_without_a_person']:.0%}"
+    )
 
 
 @app.command()
@@ -692,6 +853,21 @@ def outcomes_detect(
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Show what would be recorded; write nothing")
     ] = False,
+    vwu: Annotated[
+        bool,
+        typer.Option(
+            "--vwu",
+            help="Record accepted delivery signals (git merges, business events) as verified"
+            " work units",
+        ),
+    ] = False,
+    vwu_window_days: Annotated[
+        float,
+        typer.Option(
+            help="Reversal window for units from business events, in days (git uses --settle-days)",
+            min=0,
+        ),
+    ] = 7.0,
 ) -> None:
     """Detect outcomes: overrides and reversals in the store, git reverts/merges, business events.
 
@@ -728,12 +904,17 @@ def outcomes_detect(
             signals += silence_mod.detect(traces, assume_accepted_after)
         todo = plan(store, signals)
         for s in todo:
-            typer.echo(f"{short(s.trace_id)}  {s.status:<11} {s.source:<16} {s.note[:90]}")
+            unit = f" [vwu {s.unit.unit}]" if s.unit and ob.records_unit(s, vwu) else ""
+            typer.echo(f"{short(s.trace_id)}  {s.status:<11} {s.source:<16} {s.note[:90]}{unit}")
         if not todo:
             typer.echo("No new outcomes.")
             return
         if dry_run:
             typer.echo(f"\n{len(todo)} outcome(s) would be recorded (dry run).")
             return
-        n = apply(store, todo)
-        typer.echo(f"\nRecorded {n} outcome(s). Human-recorded outcomes were left as they are.")
+        n = apply(store, todo, vwu=vwu, vwu_window_days=vwu_window_days)
+        units = sum(ob.records_unit(s, vwu) for s in todo)
+        made = f", {units} of them verified work units" if units else ""
+        typer.echo(
+            f"\nRecorded {n} outcome(s){made}. Human-recorded outcomes were left as they are."
+        )
