@@ -50,7 +50,7 @@ dt verify                     # recompute the hash chain
 No Claude Code? Try the showcase without an API key:
 
 ```bash
-git clone https://github.com/vpsingh88/liquicent-decisiontrace && cd liquicent-decisiontrace
+git clone https://github.com/Liquicent/liquicent-decisiontrace && cd liquicent-decisiontrace
 uv sync
 uv run python examples/refund_agent.py     # an agent refunds $850, over a $500 limit
 uv run dt why "$(uv run dt log -n 1 | awk '{print $3}')"

@@ -322,3 +322,9 @@ Liquicent (phase 3) start in private repos and read this store.
 - Docs: docs/outcomes.md, CLI reference, README.
 - Next: run it daily from the Claude Code hook (e.g. on SessionStart) once real repos confirm
   the git heuristics (carry window, settle days) don't mislabel squash-merges.
+
+## 2026-10-17 — Repo moved to the Liquicent org
+
+- Applied the outcome-detection patch carried in Compounding (`ops/pending`).
+- Links (README, docs, mkdocs, pyproject URLs, schema `$id`) now point to
+  `Liquicent/liquicent-decisiontrace`. Valence and Compounding pin this commit.

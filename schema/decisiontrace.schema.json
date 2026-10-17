@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/vpsingh88/liquicent-decisiontrace/schema/decisiontrace.schema.json",
+  "$id": "https://github.com/Liquicent/liquicent-decisiontrace/schema/decisiontrace.schema.json",
   "title": "DecisionTrace record",
   "description": "One append-only record in a DecisionTrace store: a decision DT = <C, P, E, X, H, T, O>, or an outcome or correction linked to an earlier decision. Annotations named x-otel give the OpenTelemetry GenAI attribute a field maps to (opentelemetry-semantic-conventions 0.66b1).",
   "x-schema-version": "0.1.0",

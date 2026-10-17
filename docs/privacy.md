@@ -37,4 +37,4 @@ does most of this) and use namespaces to separate stores.
 
 ## Reporting a vulnerability
 
-See [SECURITY.md](https://github.com/vpsingh88/liquicent-decisiontrace/blob/main/SECURITY.md).
+See [SECURITY.md](https://github.com/Liquicent/liquicent-decisiontrace/blob/main/SECURITY.md).

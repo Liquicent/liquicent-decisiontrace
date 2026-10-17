@@ -1,6 +1,6 @@
 site_name: DecisionTrace
 site_description: Record why your AI made a decision, at the moment it's made.
-repo_url: https://github.com/vpsingh88/liquicent-decisiontrace
+repo_url: https://github.com/Liquicent/liquicent-decisiontrace
 edit_uri: edit/main/docs/
 theme:
   name: material

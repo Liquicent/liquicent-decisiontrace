@@ -25,8 +25,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/vpsingh88/liquicent-decisiontrace"
-Issues = "https://github.com/vpsingh88/liquicent-decisiontrace/issues"
+Homepage = "https://github.com/Liquicent/liquicent-decisiontrace"
+Issues = "https://github.com/Liquicent/liquicent-decisiontrace/issues"
 
 [project.scripts]
 dt = "decisiontrace.cli:app"

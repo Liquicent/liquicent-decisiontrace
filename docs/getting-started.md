@@ -42,7 +42,7 @@ Outcomes are appended, never edited in — the original decision stays exactly a
 ## Try it without any setup
 
 ```bash
-git clone https://github.com/vpsingh88/liquicent-decisiontrace && cd liquicent-decisiontrace
+git clone https://github.com/Liquicent/liquicent-decisiontrace && cd liquicent-decisiontrace
 uv sync
 uv run python examples/refund_agent.py
 uv run dt log
