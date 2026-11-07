@@ -353,3 +353,10 @@ Liquicent (phase 3) start in private repos and read this store.
 - Next: after merge, bump the DecisionTrace pins in Valence and Compounding; Valence can
   then report units by capability and the share verified without a person.
 
+
+## 2026-11-07 — 0.1.0 on PyPI
+
+- `liquicent-decisiontrace` 0.1.0 published from the `v0.1.0` tag (Trusted Publishing).
+- Install docs now lead with `pipx` / `uv tool`: plain `pip install` is refused on Debian,
+  Ubuntu and Homebrew Python (PEP 668, "externally-managed-environment").
+- Next: move Valence and Compounding from the git pin to `liquicent-decisiontrace==0.1.0`.

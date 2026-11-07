@@ -8,7 +8,7 @@ options it rejected, who approved, and what happened next. Local, append-only,
 tamper-evident.
 
 ```bash
-pip install liquicent-decisiontrace
+pipx install liquicent-decisiontrace
 dt install claude-code
 # …work as usual…
 dt log

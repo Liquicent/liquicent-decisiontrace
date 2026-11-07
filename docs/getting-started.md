@@ -3,9 +3,21 @@
 ## 1. Install
 
 ```bash
-pip install liquicent-decisiontrace      # Python 3.11+
+pipx install liquicent-decisiontrace     # Python 3.11+; or: uv tool install liquicent-decisiontrace
 dt init                                  # creates ~/.decisiontrace (optional: install does it)
 ```
+
+`pipx` (or `uv tool`) gives `dt` its own environment and puts it on your PATH. Use it
+where plain `pip install` fails with "externally-managed-environment", as it does on
+Debian, Ubuntu and Homebrew Python:
+
+```bash
+sudo apt install pipx      # macOS: brew install pipx
+pipx ensurepath            # then open a new terminal
+```
+
+In a project's virtual environment, `pip install liquicent-decisiontrace` works as usual.
+Upgrade later with `pipx upgrade liquicent-decisiontrace`.
 
 ## 2. Record
 

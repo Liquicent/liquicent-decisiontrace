@@ -7,7 +7,7 @@ or denied, the model, tokens, and the git commit before and after.
 ## Install
 
 ```bash
-pip install liquicent-decisiontrace
+pipx install liquicent-decisiontrace   # see Getting started if pip refuses
 dt install claude-code            # all projects (~/.claude/settings.json)
 dt install claude-code --scope project   # this repo, committed (.claude/settings.json)
 dt install claude-code --scope local     # this repo, just you (.claude/settings.local.json)

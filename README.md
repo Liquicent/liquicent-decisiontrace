@@ -32,9 +32,15 @@ Outcome: reverted.
 ## Five minutes to `dt why`
 
 ```bash
-pip install liquicent-decisiontrace
+pipx install liquicent-decisiontrace   # or: uv tool install liquicent-decisiontrace
 dt install claude-code        # hooks into Claude Code; nothing else to configure
 ```
+
+On Debian, Ubuntu or Homebrew Python, plain `pip install` is refused
+("externally-managed-environment"); `pipx` or `uv tool` installs `dt` in its own
+environment. Get pipx with `sudo apt install pipx` or `brew install pipx`, then run
+`pipx ensurepath` and open a new terminal. Inside a virtual environment, `pip install`
+works as usual.
 
 Use Claude Code as usual. Then:
 
