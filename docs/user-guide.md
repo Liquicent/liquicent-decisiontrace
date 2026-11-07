@@ -50,6 +50,7 @@ import anthropic, decisiontrace as dt
 
 client = dt.wrap(anthropic.Anthropic())
 
+
 def issue_refund(order_id, amount):
     if amount > 500:
         dt.policy("refund.max_auto_amount", "fail", detail=f"${amount} > $500", enforced=True)
