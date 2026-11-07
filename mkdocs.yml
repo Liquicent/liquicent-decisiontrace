@@ -24,6 +24,7 @@ exclude_docs: |
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - User guide: user-guide.md
   - Concepts: concepts.md
   - Adapters:
       - Claude Code: adapters/claude-code.md

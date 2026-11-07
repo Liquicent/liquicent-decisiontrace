@@ -42,6 +42,9 @@ environment. Get pipx with `sudo apt install pipx` or `brew install pipx`, then 
 `pipx ensurepath` and open a new terminal. Inside a virtual environment, `pip install`
 works as usual.
 
+The [user guide](docs/user-guide.md) walks through setup, recording, recall, outcomes,
+verified work units and a shared team server, step by step.
+
 Use Claude Code as usual. Then:
 
 ```bash

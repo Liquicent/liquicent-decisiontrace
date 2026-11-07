@@ -1,5 +1,7 @@
 # Getting started
 
+The short version. For every step in detail, see the [user guide](user-guide.md).
+
 ## 1. Install
 
 ```bash
