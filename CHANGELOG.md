@@ -6,13 +6,11 @@ All notable changes to this project are documented here. The schema has its own 
 
 ## Unreleased
 
-- Verified work units (VWU): an accepted outcome record may carry `vwu` (unit, quantity, executor, quality threshold, measurement window, verification method and evidence, reversal window and cost bound). `Actor` gains `org` (the accountable organisation, e.g. a vendor) and `version` (an agent's model/prompt/tool bundle). `dt outcome --accepted --vwu UNIT`, `dt vwu` (state: provisional, final or reverted; share verified without a person), `dt outcomes detect --vwu`. Schema stays 0.1.0: every field is optional and additive.
-- `dt mcp --http`: self-hosted MCP server for teams (Claude.ai / ChatGPT connectors, Claude Code, agents): token by header or secret URL, tool allow-list, no access log, `/healthz`; Docker + Caddy deployment in `deploy/self-hosted-mcp/`.
-- `dt outcomes detect`: outcomes from the store (overrides, reversal links, failed actions, human redos), git (reverts, merges) and business events (Stripe, Zendesk, Jira, GitHub, PagerDuty, generic JSONL); opt-in `--assume-accepted-after`. Never overrides a person's outcome.
+Nothing yet.
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-11-07
 
-First public release.
+First public release, on PyPI as `liquicent-decisiontrace`.
 
 ### Record
 - Open JSON Schema v0.1.0 for `DT = ⟨C, P, E, X, H, T, O⟩` plus actions, state before/after,
@@ -30,8 +28,13 @@ First public release.
   (Chat Completions, Responses); `dt.decision()` / `dt.policy()` / `dt.exception()` /
   `dt.approval()` for any code.
 - **OpenTelemetry**: `dt ingest-otel` (OTLP/HTTP JSON and protobuf, or files).
+- `dt mcp --http`: self-hosted MCP server for teams (Claude.ai / ChatGPT connectors, Claude Code, agents): token by header or secret URL, tool allow-list, no access log, `/healthz`; Docker + Caddy deployment in `deploy/self-hosted-mcp/`.
 
 ### Recall
 - `dt why <id|file|commit>`, `dt similar` (the paper's `Sim = αP + βX + γC + δA + εT − λΔt`),
   `dt ask` (offline filters; `--llm` with Claude), `dt outcome`, `dt eval` golden sets.
 - Optional embeddings (`[embeddings]`: model2vec + sqlite-vec).
+
+### Outcomes
+- `dt outcomes detect`: outcomes from the store (overrides, reversal links, failed actions, human redos), git (reverts, merges) and business events (Stripe, Zendesk, Jira, GitHub, PagerDuty, generic JSONL); opt-in `--assume-accepted-after`. Never overrides a person's outcome.
+- Verified work units (VWU): an accepted outcome record may carry `vwu` (unit, quantity, executor, quality threshold, measurement window, verification method and evidence, reversal window and cost bound). `Actor` gains `org` (the accountable organisation, e.g. a vendor) and `version` (an agent's model/prompt/tool bundle). `dt outcome --accepted --vwu UNIT`, `dt vwu` (state: provisional, final or reverted; share verified without a person), `dt outcomes detect --vwu`. Schema stays 0.1.0: every field is optional and additive.

@@ -5,6 +5,12 @@
   </picture>
 </h1>
 
+[![PyPI](https://img.shields.io/pypi/v/liquicent-decisiontrace)](https://pypi.org/project/liquicent-decisiontrace/)
+[![Python](https://img.shields.io/pypi/pyversions/liquicent-decisiontrace)](https://pypi.org/project/liquicent-decisiontrace/)
+[![Licence](https://img.shields.io/github/license/Liquicent/liquicent-decisiontrace?label=licence)](https://github.com/Liquicent/liquicent-decisiontrace/blob/main/LICENSE)
+[![CI](https://github.com/Liquicent/liquicent-decisiontrace/actions/workflows/ci.yml/badge.svg)](https://github.com/Liquicent/liquicent-decisiontrace/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-read-2BB3A3)](https://liquicent.github.io/liquicent-decisiontrace/)
+
 **Record *why* your AI made a decision, at the moment it's made — then ask `dt why` later.**
 
 Logs tell you *what* an agent did. DecisionTrace records *why it was allowed to*: what it
@@ -119,7 +125,8 @@ reveals. Liquicent learns.*
 
 ## Status
 
-0.1 — pre-release. Built in the open: [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md),
+0.1.0 on PyPI, alpha. Docs: <https://liquicent.github.io/liquicent-decisiontrace/>.
+Built in the open: [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md),
 [docs/progress-log.md](docs/progress-log.md), [CHANGELOG.md](CHANGELOG.md).
 
 Apache-2.0. Contributions under the [DCO](CONTRIBUTING.md#developer-certificate-of-origin-dco).

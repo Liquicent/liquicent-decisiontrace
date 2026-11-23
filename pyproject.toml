@@ -26,6 +26,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/Liquicent/liquicent-decisiontrace"
+Documentation = "https://liquicent.github.io/liquicent-decisiontrace/"
+Changelog = "https://github.com/Liquicent/liquicent-decisiontrace/blob/main/CHANGELOG.md"
 Issues = "https://github.com/Liquicent/liquicent-decisiontrace/issues"
 
 [project.scripts]
