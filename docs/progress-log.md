@@ -360,3 +360,18 @@ Liquicent (phase 3) start in private repos and read this store.
 - Install docs now lead with `pipx` / `uv tool`: plain `pip install` is refused on Debian,
   Ubuntu and Homebrew Python (PEP 668, "externally-managed-environment").
 - Next: move Valence and Compounding from the git pin to `liquicent-decisiontrace==0.1.0`.
+
+
+## 2026-11-23 — Logo
+
+- Logo: a lowercase `dt` with a teal record dot in the bowl of the `d`. Files in
+  `docs/assets/`: `logo-on-light.svg` and `logo-on-dark.svg` (the wordmark is converted to
+  outlines, so they need no font), `mark-on-dark.svg`, `favicon.ico`.
+- README opens with the logo and switches between the light and dark file by reader theme.
+  It loads by full `raw.githubusercontent.com` address on `main`, because PyPI shows the
+  README too and cannot follow relative paths; it shows once this is on `main`.
+- Docs site: `theme.logo` and `theme.favicon` in `mkdocs.yml`.
+- `tests/test_docs.py`: the logo files that the README and `mkdocs.yml` point at must exist,
+  and the SVGs must not need a font or the network.
+- Next: set the repository's social preview image and the organisation's profile picture
+  (GitHub settings, not files). The PyPI page shows the logo from the next release.
