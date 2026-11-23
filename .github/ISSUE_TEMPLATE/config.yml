@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://liquicent.github.io/liquicent-decisiontrace/
+    about: Setup, adapters, recall and the record format.
+  - name: Security or privacy problem
+    url: https://github.com/Liquicent/liquicent-decisiontrace/security/policy
+    about: Please report these privately, not in a public issue.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.metadata
 import re
 import xml.etree.ElementTree as ET
 
@@ -52,3 +53,21 @@ def test_logo_svgs_need_no_font_or_network() -> None:
         tags = {element.tag.rsplit("}", 1)[-1] for element in root.iter()}
         assert root.get("viewBox"), path.name
         assert not tags & {"text", "image", "script", "style", "use", "foreignObject"}, path.name
+
+
+def test_changelog_dates_the_installed_version() -> None:
+    # A version that is out must not sit under "unreleased".
+    version = importlib.metadata.version("liquicent-decisiontrace")
+    text = (ROOT / "CHANGELOG.md").read_text()
+    heading = rf"^## {re.escape(version)} — \d{{4}}-\d{{2}}-\d{{2}}$"
+    assert re.search(heading, text, flags=re.MULTILINE), f"date {version} in CHANGELOG.md"
+
+
+def test_docs_site_address_is_linked() -> None:
+    # Without site_url the page-not-found page loses its styles and the sitemap is empty.
+    found = re.search(r"^site_url: (\S+)$", (ROOT / "mkdocs.yml").read_text(), flags=re.MULTILINE)
+    assert found, "mkdocs.yml has no site_url"
+    address = found.group(1)
+    assert address.endswith("/"), address
+    for name in ("README.md", "pyproject.toml"):
+        assert address in (ROOT / name).read_text(), f"{name} should link to {address}"

@@ -375,3 +375,24 @@ Liquicent (phase 3) start in private repos and read this store.
   and the SVGs must not need a font or the network.
 - Next: set the repository's social preview image and the organisation's profile picture
   (GitHub settings, not files). The PyPI page shows the logo from the next release.
+
+
+## 2026-11-23 — Launch-day polish
+
+- Docs site published at https://liquicent.github.io/liquicent-decisiontrace/ (built site on
+  the `gh-pages` branch; Pages switched on in the repo settings). `site_url` set in
+  `mkdocs.yml`, so the page-not-found page keeps its styles and the sitemap lists the pages.
+- CHANGELOG: 0.1.0 dated 2026-11-07. VWUs, `dt mcp --http` and `dt outcomes detect` moved out
+  of Unreleased, because the `v0.1.0` tag already holds them (no `src/` change since the tag).
+- README: badges, a link to the docs, status "0.1.0 on PyPI, alpha". `pyproject.toml` gains
+  Documentation and Changelog links (PyPI shows them from the next release).
+- Issue templates (bug report, adapter request), a pull request template, an `adapter` label.
+- `tests/test_docs.py`: the installed version must have a dated CHANGELOG heading, and the
+  docs address in `mkdocs.yml` must appear in the README and `pyproject.toml`.
+- Fresh install of 0.1.0 from PyPI on Linux passes: `dt install claude-code`, hook events
+  (about 50 ms each), `dt log`, `dt why`, `dt verify`.
+- Waiting on Praveen (this kind of session cannot change repo settings or publish releases):
+  the About line ("tamper-evident", not "tamper-proof"), website link, topics, Discussions,
+  social preview image, the v0.1.0 GitHub release, and a contact address for a code of conduct.
+- Next: republishing the docs is manual (`mkdocs build`, then push `gh-pages`). The demo GIF
+  (`vhs docs/demo.tape`) and starter issues are still open.
