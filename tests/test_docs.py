@@ -71,3 +71,11 @@ def test_docs_site_address_is_linked() -> None:
     assert address.endswith("/"), address
     for name in ("README.md", "pyproject.toml"):
         assert address in (ROOT / name).read_text(), f"{name} should link to {address}"
+
+
+def test_code_of_conduct_names_a_contact() -> None:
+    # A template left with its placeholder gives people nobody to write to.
+    text = (ROOT / "CODE_OF_CONDUCT.md").read_text()
+    assert "[INSERT" not in text, "fill in the contact method"
+    assert re.search(r"responsible for enforcement at \S+@\S+\.\w+", text), "name a contact address"
+    assert "](CODE_OF_CONDUCT.md)" in (ROOT / "CONTRIBUTING.md").read_text()
