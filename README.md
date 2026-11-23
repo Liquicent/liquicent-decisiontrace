@@ -1,4 +1,9 @@
-# DecisionTrace
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Liquicent/liquicent-decisiontrace/main/docs/assets/logo-on-dark.svg">
+    <img src="https://raw.githubusercontent.com/Liquicent/liquicent-decisiontrace/main/docs/assets/logo-on-light.svg" alt="DecisionTrace" width="320">
+  </picture>
+</h1>
 
 **Record *why* your AI made a decision, at the moment it's made — then ask `dt why` later.**
 

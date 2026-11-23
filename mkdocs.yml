@@ -4,6 +4,8 @@ repo_url: https://github.com/Liquicent/liquicent-decisiontrace
 edit_uri: edit/main/docs/
 theme:
   name: material
+  logo: assets/mark-on-dark.svg
+  favicon: assets/favicon.ico
   features: [navigation.sections, content.code.copy, search.highlight]
   palette:
     - scheme: default
