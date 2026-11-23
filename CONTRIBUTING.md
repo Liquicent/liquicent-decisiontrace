@@ -4,6 +4,9 @@ Thanks for helping. DecisionTrace records **why** an AI-assisted decision was ma
 `CLAUDE.md` for the non-negotiables (capture at execution time, append-only, no gateways,
 local-first, privacy by default, record execution not cognition).
 
+Everyone who takes part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md),
+which also says where to report a problem.
+
 ## Setup
 
 ```bash

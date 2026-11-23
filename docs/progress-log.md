@@ -396,3 +396,21 @@ Liquicent (phase 3) start in private repos and read this store.
   social preview image, the v0.1.0 GitHub release, and a contact address for a code of conduct.
 - Next: republishing the docs is manual (`mkdocs build`, then push `gh-pages`). The demo GIF
   (`vhs docs/demo.tape`) and starter issues are still open.
+
+
+## 2026-11-23 — Repository settings, release, code of conduct
+
+- Repository settings, changed by hand in the browser as the owner (this kind of session
+  cannot change them through the API): the About line says "tamper-evident" and carries the
+  docs site and eight topics; Discussions is on; the social preview is the launch image with
+  the logo; private vulnerability reporting is on, so the **Security → Report a
+  vulnerability** route in `SECURITY.md` exists.
+- GitHub release v0.1.0 published on the existing tag. `release.yml` runs on tag pushes only,
+  so nothing was published to PyPI again.
+- `CODE_OF_CONDUCT.md`: Contributor Covenant 2.1, unchanged apart from the contact address.
+  `CONTRIBUTING.md` links to it.
+- `tests/test_docs.py`: the code of conduct must name a contact address and be linked from
+  `CONTRIBUTING.md`.
+- This closes the "Waiting on Praveen" list in the entry above.
+- Next: the demo GIF (`vhs docs/demo.tape`) and starter issues are still open. Discussions
+  has no welcome post yet.
